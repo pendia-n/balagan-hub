@@ -1,3 +1,4 @@
+import {challenges, maintainChallenges} from './challenges.mjs';
 import { brandAsset, brandCSS, brandLink, iconTag } from './brand.mjs';
 import { gameAuth, gameUser } from './game-auth.mjs';
 import { games, scoreRecall } from './games.mjs';
@@ -44,14 +45,15 @@ export function createRoomWorker(game){
  const message=(title,body,status)=>render(title,'<h1>'+h(title)+'</h1><div class="panel">'+body+'</div>',status);
  const signIn=path=>'/auth/start?next='+encodeURIComponent(path);
  const field=(label)=>'<label for="answer">'+label+'</label><textarea name="answer" id="answer" required maxlength="1000"></textarea>';
- return {async fetch(request,env){
+ return {async scheduled(_event,env,ctx){ctx.waitUntil(maintainChallenges(env,game));},async fetch(request,env){
   const url = new URL(request.url), path=url.pathname, method=request.method;
   const brand=await brandAsset(request,env,game);if(brand)return brand;
   const auth=await gameAuth(request,env,game);if(auth)return auth;
+  const updated=await challenges(request,env,game,render);if(updated)return updated;
   if(method!=='GET'&&method!=='POST')return new Response(null,{status:405});
   if(method==='POST'&&request.headers.get('Origin')!==url.origin)return new Response(null,{status:403});
   const db=env.DB;
-  if(path==='/'&&method==='GET')return render(g.name,'<section class="hero"><div><h1>'+g.heading+'</h1>'+para(g.copy)+para(g.entry)+link('Host a challenge','/host')+'</div><img src="https://balagan.live/media/'+game+'-wide.png" alt=""></section>');
+  if(path==='/'&&method==='GET')return render(g.name,'<section class="hero"><div><h1>'+g.heading+'</h1>'+para(game==='wemember'?'Read a random script aloud. Friends hear it once and type what they remember.':game==='sorriest'?'Write one apology for a daily fictional scandal, then vote.':'Challenge a friend and invite up to five jurors.')+para(game==='sorriest'?'20 tokens per entry. New games open throughout the day.':g.entry)+link(game==='sorriest'?'Browse today’s contests':'Host a challenge',game==='sorriest'?'/daily':'/challenge/new')+'</div><img src="https://balagan.live/media/'+game+'-wide.png" alt=""></section>');
   const match=/^\/room\/([a-f0-9-]{36})(?:\/(recording))?$/.exec(path);
   if(path!=='/host'&&!match)return message('Page not found',link('Game home','/'),404);
   const user=await gameUser(request,env,game);

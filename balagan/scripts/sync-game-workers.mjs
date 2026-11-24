@@ -13,13 +13,14 @@ for(const game of games){
  const folder=resolve(mvp,game.directory);
  const worker=resolve(folder,'balagan-worker');
  await mkdir(resolve(worker,'migrations'),{recursive:true});
- for(const file of ['game-auth.mjs','session.mjs'])await copyFile(resolve(project,'src/lib',file),resolve(worker,file));
- for(const file of ['room.mjs','games.mjs','brand.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
+ for(const file of ['game-auth.mjs','session.mjs','settlement-proof.mjs'])await copyFile(resolve(project,'src/lib',file),resolve(worker,file));
+ for(const file of ['room.mjs','games.mjs','brand.mjs','challenges.mjs','challenge-rules.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
  await copyFile(resolve(project,'game-worker/rooms.sql'),resolve(worker,'migrations/0001_rooms.sql'));
  await copyFile(resolve(project,'game-worker/decks',game.name+'.sql'),resolve(worker,'migrations/0002_prompt_deck.sql'));
+ await copyFile(resolve(project,'game-worker/challenges.sql'),resolve(worker,'migrations/0003_challenges.sql'));
  await writeFile(resolve(worker,'index.mjs'),'import { createRoomWorker } from "./room.mjs";\nexport default createRoomWorker('+JSON.stringify(game.name)+');\n');
  const config={
-  name:game.name,main:'balagan-worker/index.mjs',compatibility_date:'2026-11-17',
+  name:game.name,main:'balagan-worker/index.mjs',compatibility_date:'2026-11-17',triggers:{crons:['* * * * *']},
   routes:[{pattern:game.host,custom_domain:true}],services:[{binding:'BALAGAN',service:'balagan'}],
   d1_databases:[{binding:'DB',database_name:game.name+'-db',database_id:game.db,migrations_dir:'balagan-worker/migrations'}],
  };
