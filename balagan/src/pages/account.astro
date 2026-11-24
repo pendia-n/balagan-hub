@@ -1,10 +1,14 @@
 ---
 import Balagan from '../layouts/Balagan.astro';
-import { signedIn } from '../lib/hub.mjs';
+import { offerFor } from '../lib/offers.mjs';
+import { bindings, signedIn } from '../lib/hub.mjs';
 export const prerender = false;
 const current = await signedIn(Astro.cookies);
 if (!current) return Astro.redirect('/signin',303);
 Astro.response.headers.set('Cache-Control','no-store');
+const { results: memberships } = await bindings.DB.prepare("SELECT * FROM billing_entitlements WHERE user_id=? AND status='active' AND (paid_until IS NULL OR paid_until>unixepoch()) ORDER BY offer_id")
+  .bind(current.user.id).all();
+const date = seconds => new Date(seconds*1000).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'});
 ---
 <Balagan title="Your Balagan account">
   <h1>Your account</h1>
@@ -13,4 +17,12 @@ Astro.response.headers.set('Cache-Control','no-store');
     <p>Your account works in Thiskicks, Wemember, Sorriest and Barara.</p>
     <form method="post" action="/api/account"><input type="hidden" name="mode" value="logout"><button>Sign out of all games</button></form>
   </div>
+  <h2>Purchases and memberships</h2>
+  {!memberships.length && <p>No active publishing plans or token memberships.</p>}
+  {memberships.map(item => <section class="panel">
+    <h3>{offerFor(item.offer_id)?.name || item.offer_id}</h3>
+    {item.paid_until && <p>{item.cancel_at_period_end ? 'Ends' : 'Current term ends'} {date(item.paid_until)}.</p>}
+    {item.paid_until && !item.cancel_at_period_end && item.id.startsWith('sub_') &&
+      <form method="post" action={'/api/cancel?subscription='+encodeURIComponent(item.id)}><button>Stop renewal</button></form>}
+  </section>)}
 </Balagan>
