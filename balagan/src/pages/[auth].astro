@@ -7,7 +7,8 @@ if (mode !== 'signin' && mode !== 'register') return new Response(null,{status:4
 const info = handoff(Astro.url.searchParams);
 if (await signedIn(Astro.cookies)) return Astro.redirect(handoffPath(info),303);
 Astro.response.headers.set('Cache-Control','no-store');
-Astro.response.headers.set('Referrer-Policy','no-referrer');
+// Same-origin form posts need an Origin header for CSRF validation.
+Astro.response.headers.set('Referrer-Policy','same-origin');
 const title = mode === 'register' ? 'Create your Balagan account' : 'Sign in to Balagan';
 const other = mode === 'register' ? 'signin' : 'register';
 const code = Astro.url.searchParams.get('error');
@@ -21,7 +22,7 @@ const errors = new Map([
 <Balagan title={title}>
   <h1>{title}</h1>
   <p>One account for Thiskicks, Wemember, Sorriest and Barara.</p>
-  <div class="panel">
+  <div class="panel auth-panel">
     {code && errors.has(code) && <p class="notice" role="alert">{errors.get(code)}</p>}
     <form method="post" action="/api/account">
       <input type="hidden" name="mode" value={mode}>
@@ -35,3 +36,17 @@ const errors = new Map([
     <p><a href={'/'+other+(info ? '?' + new URLSearchParams(info) : '')}>{other === 'signin' ? 'Already have an account? Sign in' : 'Create an account'}</a></p>
   </div>
 </Balagan>
+
+<style>
+@media (max-width: 420px) {
+  h1 {
+    font-size: clamp(2rem, 9vw, 2.5rem);
+    line-height: 1.08;
+  }
+
+  .auth-panel button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
