@@ -16,6 +16,7 @@ for(const game of games){
  for(const file of ['game-auth.mjs','session.mjs'])await copyFile(resolve(project,'src/lib',file),resolve(worker,file));
  for(const file of ['room.mjs','games.mjs','brand.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
  await copyFile(resolve(project,'game-worker/rooms.sql'),resolve(worker,'migrations/0001_rooms.sql'));
+ await copyFile(resolve(project,'game-worker/decks',game.name+'.sql'),resolve(worker,'migrations/0002_prompt_deck.sql'));
  await writeFile(resolve(worker,'index.mjs'),'import { createRoomWorker } from "./room.mjs";\nexport default createRoomWorker('+JSON.stringify(game.name)+');\n');
  const config={
   name:game.name,main:'balagan-worker/index.mjs',compatibility_date:'2026-11-17',
