@@ -8,6 +8,8 @@ const link=(label,url)=>'<a class="button" href="'+h(url)+'">'+h(label)+'</a>';
 const button=(action,label)=>'<button name="action" value="'+action+'">'+label+'</button>';
 const form=(url,contents)=>'<form method="post" action="'+url+'">'+contents+'</form>';
 const para=text=>'<p class="answer">'+h(text)+'</p>';
+const millis=value=>value<1e12?value*1000:value;
+const elapsed=player=>Math.max(0,millis(player.submitted_at)-millis(player.opened_at));
 const time=()=>Math.floor(Date.now()/1000);
 function html(g,title,body,status=200){
  const [paper,ink,accent]=g.colors;
@@ -73,17 +75,19 @@ export function createRoomWorker(game){
   if(!room)return message('Room not found',link('Game home','/'),404);
   const base=location(id), scenario=g.scenarios[room.scenario], host=room.host===user.id;
   const player=await db.prepare('SELECT * FROM players WHERE room_id=? AND user_id=?').bind(id,user.id).first();
+  const nowMs=Date.now();
+  const hasJury=game==='barara'&&Boolean(await db.prepare("SELECT 1 FROM players WHERE room_id=? AND role='jury' LIMIT 1").bind(id).first());
+  const mayGiveVerdict=player?.role==='jury'&&player.cost!=null||host&&!hasJury;
   const closed=room.phase==='closed'||now-room.created_at>=86400||(game==='barara'&&room.started_at&&now-room.started_at>=600);
   const phase=closed?'closed':room.phase;
   if(recording){
    if(game!=='wemember'||method!=='POST'||phase!=='play'||player?.cost==null)return new Response(null,{status:403});
-   const consumed=await db.prepare('UPDATE players SET opened_at=? WHERE room_id=? AND user_id=? AND opened_at IS NULL').bind(now,id,user.id).run();
-   if(!consumed.meta.changes)return new Response(null,{status:410});
+   if(player.opened_at!=null)return new Response(null,{status:410});
    const file=await env.MEDIA.get('challenges/seaside.wav');
-   if(!file){
-    await db.prepare('UPDATE players SET opened_at=NULL WHERE room_id=? AND user_id=? AND opened_at=?').bind(id,user.id,now).run();
-    return new Response(null,{status:503});
-   }
+   if(!file)return new Response(null,{status:503});
+   const consumed=await db.prepare("UPDATE players SET opened_at=? WHERE room_id=? AND user_id=? AND opened_at IS NULL AND EXISTS(SELECT 1 FROM rooms WHERE id=? AND phase='play')")
+    .bind(nowMs,id,user.id,id).run();
+   if(!consumed.meta.changes){await file.body.cancel();return new Response(null,{status:410});}
    return new Response(file.body,{headers:{'Content-Type':'audio/wav','Cache-Control':'no-store'}});
   }
   if(method==='POST'){
@@ -104,31 +108,37 @@ export function createRoomWorker(game){
    } else if(action==='submit'&&phase==='play'&&player?.cost!=null){
     const answer=values?.get('answer')?.trim();
     if(!answer||answer.length>1000)return message('Enter a response under 1,000 characters',link('Back to room',base),400);
-    if(game==='wemember'&&player.opened_at!=null&&now-player.opened_at>=5){
-     await db.prepare('UPDATE players SET answer=?,score=?,submitted_at=? WHERE room_id=? AND user_id=? AND answer IS NULL')
-       .bind(answer,scoreRecall(answer),now,id,user.id).run();
+    if(game==='wemember'){
+     const heardAt=player.opened_at==null ? null : player.opened_at<1e12 ? player.opened_at*1000 : player.opened_at;
+     if(heardAt==null||nowMs<heardAt+g.recordingMs)return message('Finish listening first',link('Back to room',base),409);
+     await db.prepare("UPDATE players SET answer=?,score=?,submitted_at=? WHERE room_id=? AND user_id=? AND answer IS NULL AND EXISTS(SELECT 1 FROM rooms WHERE id=? AND phase='play')")
+       .bind(answer,scoreRecall(answer),nowMs,id,user.id,id).run();
     }
     if(game!=='wemember'&&(game!=='barara'||player.role==='accused')){
      if(!player.answer)await db.prepare('UPDATE players SET answer=? WHERE room_id=? AND user_id=? AND answer IS NULL').bind(answer,id,user.id).run();
      else await db.prepare('UPDATE players SET followup=?,submitted_at=? WHERE room_id=? AND user_id=? AND followup IS NULL').bind(answer,now,id,user.id).run();
     }
-   } else if(action==='vote'&&phase==='vote'&&player?.cost!=null&&game!=='wemember'){
+   } else if(action==='vote'&&phase==='vote'&&(player?.cost!=null||game==='barara'&&mayGiveVerdict)&&game!=='wemember'){
     const choice=values.get('choice');
     const allowed=game==='barara'
-      ? player.role==='jury'&&['guilty','not-guilty'].includes(choice)
+      ? mayGiveVerdict&&['guilty','not-guilty'].includes(choice)
       : choice!==user.id&&await db.prepare('SELECT 1 FROM players WHERE room_id=? AND user_id=? AND followup IS NOT NULL').bind(id,choice).first();
     if(allowed)await db.prepare('INSERT OR IGNORE INTO votes VALUES(?,?,?)').bind(id,user.id,choice).run();
    } else if(host&&action==='start'&&phase==='lobby'){
     await db.prepare("UPDATE rooms SET phase='play',started_at=? WHERE id=? AND phase='lobby' AND EXISTS(SELECT 1 FROM players WHERE room_id=? AND user_id!=?)").bind(now,id,id,user.id).run();
    } else if(host&&action==='advance'&&(phase==='play'||phase==='vote')){
     const next=phase==='vote'||game==='wemember'?'closed':'vote';
-    await db.prepare('UPDATE rooms SET phase=? WHERE id=? AND phase=?').bind(next,id,phase).run();
+    if(phase==='play'){
+     const completed=game==='barara' ? "role='accused' AND followup IS NOT NULL" : "submitted_at IS NOT NULL";
+     await db.prepare("UPDATE rooms SET phase=? WHERE id=? AND phase='play' AND EXISTS(SELECT 1 FROM players WHERE room_id=? AND "+completed+")").bind(next,id,id).run();
+    } else await db.prepare("UPDATE rooms SET phase='closed' WHERE id=? AND phase='vote'").bind(id).run();
    }
    return redirect(base);
   }
   if(!player&&phase!=='lobby')return message('This room has already started',link('Game home','/'),409);
   const {results:players}=await db.prepare('SELECT * FROM players WHERE room_id=? ORDER BY username COLLATE NOCASE').bind(id).all();
   let content='<h1>'+h(room.name)+'</h1><div class="panel"><h2>'+h(scenario[0])+'</h2>';
+  if(game==='barara'&&room.started_at&&!closed)content+=para('Court closes at '+new Date((room.started_at+600)*1000).toISOString().slice(11,16)+' UTC.');
   if(phase==='lobby'){
    content+=para(g.entry)+para('Share this private link with friends.')+'<input aria-label="Invitation link" readonly value="'+h(url.origin+base)+'">';
    content+=players.map(p=>'<div class="player">'+h(p.username)+(game==='barara'?' · '+h(p.role):'')+'</div>').join('');
@@ -142,8 +152,10 @@ export function createRoomWorker(game){
    } else if(game==='wemember'){
     if(player.answer)content+=para('Answer locked. Wait for the host to reveal results.');
     else {
-     if(player.opened_at==null)content+='<button id="listen" data-src="'+base+'/recording">Play recording once</button><p id="audio-status" role="status"></p><script>document.getElementById("listen").addEventListener("click",async function(){this.disabled=true;const s=document.getElementById("audio-status");try{const r=await fetch(this.dataset.src,{method:"POST"});if(!r.ok)throw Error();const a=new Audio(URL.createObjectURL(await r.blob()));await a.play();a.onended=()=>{s.textContent="Playback ended. Type your answer.";};}catch{s.textContent="Audio could not play. Refresh to see whether playback was recorded.";}});</script>';
-     content+=form(base,field('Your recollection')+button('submit','Lock in answer'));
+     if(player.opened_at==null)content+='<button id="listen" data-src="'+base+'/recording">Play recording once</button><p id="audio-status" role="status"></p><script>document.getElementById("listen").addEventListener("click",async function(){this.disabled=true;const s=document.getElementById("audio-status");try{const r=await fetch(this.dataset.src,{method:"POST"});if(!r.ok)throw Error();const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>{s.textContent="Playback ended. Type your answer.";document.getElementById("recall").disabled=false;};await a.play();}catch{s.textContent="Audio could not play. Refresh to see whether playback was recorded.";}});</script>';
+     const formBlocked=player.opened_at==null||nowMs<(player.opened_at<1e12?player.opened_at*1000:player.opened_at)+g.recordingMs;
+     content+=form(base,'<fieldset id="recall" '+(formBlocked?'disabled':'')+'>'+field('Your recollection')+button('submit','Lock in answer')+'</fieldset>');
+     if(player.opened_at!=null&&formBlocked)content+=link('Continue after playback',base);
     }
    } else if(game==='barara'&&player.role==='jury')content+=para('Wait for the defence before voting.');
    else if(player.followup)content+=para('Response submitted. Wait for voting.');
@@ -155,7 +167,7 @@ export function createRoomWorker(game){
    const eligible=players.filter(p=>p.followup&&p.user_id!==user.id);
    if(game==='barara'){
     const accused=players.find(p=>p.role==='accused');content+=para(accused?.answer)+para(accused?.followup);
-    if(!voted&&player?.role==='jury'&&player.cost!=null)content+=form(base,'<label for="choice">Your verdict</label><select id="choice" name="choice"><option value="not-guilty">Not guilty</option><option value="guilty">Guilty</option></select>'+button('vote','Lock verdict'));
+    if(!voted&&mayGiveVerdict)content+=form(base,'<label for="choice">Your verdict</label><select id="choice" name="choice"><option value="not-guilty">Not guilty</option><option value="guilty">Guilty</option></select>'+button('vote','Lock verdict'));
    } else {
     content+=eligible.map(p=>'<div class="player"><strong>'+h(p.username)+'</strong>'+para(p.answer)+para(p.followup)+'</div>').join('');
     if(!voted&&eligible.length&&player?.cost!=null)content+=form(base,'<label for="choice">Best recovery</label><select id="choice" name="choice">'+eligible.map(p=>'<option value="'+h(p.user_id)+'">'+h(p.username)+'</option>').join('')+'</select>'+button('vote','Cast vote'));
@@ -163,7 +175,7 @@ export function createRoomWorker(game){
    if(voted)content+=para('Your vote is recorded.');
    if(host)content+=form(base,button('advance','Reveal results'));
   } else {
-   if(game==='wemember')content+=para(g.reference)+players.filter(p=>p.score!=null).sort((a,b)=>b.score-a.score||a.submitted_at-b.submitted_at).map(p=>'<div class="player">'+h(p.username)+' · '+p.score+' / 5</div>').join('');
+   if(game==='wemember')content+=para(g.reference)+players.filter(p=>p.score!=null).sort((a,b)=>b.score-a.score||elapsed(a)-elapsed(b)||a.submitted_at-b.submitted_at).map(p=>'<div class="player">'+h(p.username)+' · '+p.score+' / 5</div>').join('');
    else{
     const {results:votes}=await db.prepare('SELECT choice,count(*) AS total FROM votes WHERE room_id=? GROUP BY choice ORDER BY total DESC,choice').bind(id).all();
     content+=votes.length?votes.map(v=>'<div class="player">'+h(players.find(p=>p.user_id===v.choice)?.username||v.choice)+' · '+v.total+'</div>').join(''):para('No votes recorded.');
