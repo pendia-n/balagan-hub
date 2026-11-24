@@ -1,0 +1,23 @@
+---
+import { offers, money } from '../lib/offers.mjs';
+import { bindings } from '../lib/hub.mjs';
+const { group, kind = 'all' } = Astro.props;
+const enabled = Boolean(bindings.STRIPE_SECRET_KEY && bindings.STRIPE_WEBHOOK_SECRET);
+const cards = Object.entries(offers).filter(([,offer]) => offer.group === group &&
+ (kind === 'all' || Boolean(offer.interval) === (kind === 'subscription')));
+---
+<div class="offer-grid">
+  {cards.map(([id,offer]) => <section class="panel">
+    <h3>{offer.name}</h3>
+    <strong>{money(offer.cents)}</strong>
+    <p>{offer.interval ? offer.interval === 'month' ? 'Bills monthly' : 'Bills every ' + (offer.count === 1 ? 'year' : 'two years') : 'One payment'}</p>
+    {offer.quota && <p>{offer.quota} published pitches per month.</p>}
+    {offer.tokens && offer.interval && <p>{offer.tokens} tokens each month. Subscription tokens reset monthly.</p>}
+    {enabled && <form method="post" action={'/api/checkout?offer='+id}><button>{offer.interval ? 'Subscribe' : 'Buy once'}</button></form>}
+  </section>)}
+</div>
+{!enabled && <p>Checkout is temporarily unavailable.</p>}
+<style>
+.offer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:14px}
+.offer-grid strong{font-size:26px}.offer-grid p{margin:8px 0}.offer-grid h3{font-size:24px}
+</style>

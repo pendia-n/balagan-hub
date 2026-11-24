@@ -1,0 +1,16 @@
+---
+import Balagan from '../layouts/Balagan.astro';
+import OfferCards from '../components/OfferCards.astro';
+import { signedIn } from '../lib/hub.mjs';
+export const prerender = false;
+const current = await signedIn(Astro.cookies);
+Astro.response.headers.set('Cache-Control','no-store');
+---
+<Balagan title="Thiskicks publishing">
+<h1>Thiskicks publishing</h1>
+<p>Your first pitch is free. Each paid plan provides a monthly publishing allowance. Comments and voting are free.</p>
+{!current && <p><a href="/signin">Sign in to buy a publishing plan</a></p>}
+{Astro.url.searchParams.has('checkout') && <p class="notice">We’ll activate your publishing allowance after Stripe confirms payment.</p>}
+<OfferCards group="thiskicks" />
+<p><a href="https://thiskicks.balagan.live">Back to Thiskicks</a></p>
+</Balagan>

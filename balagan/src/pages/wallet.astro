@@ -1,14 +1,22 @@
 ---
 import Balagan from '../layouts/Balagan.astro';
+import OfferCards from '../components/OfferCards.astro';
 import { bindings, signedIn } from '../lib/hub.mjs';
 import { balance } from '../lib/wallet.mjs';
+import { refill } from '../lib/fulfill.mjs';
 export const prerender = false;
 const current = await signedIn(Astro.cookies);
 if (!current) return Astro.redirect('/signin',303);
 Astro.response.headers.set('Cache-Control','no-store');
+await refill(bindings.DB,current.user.id);
 const funds = await balance(bindings.DB,current.user.id);
 ---
 <Balagan title="Your Balagan wallet">
 <h1>Your wallet</h1>
-<div class="panel"><h2>{funds} tokens</h2><p>Use Balagan tokens for Wemember, Sorriest and Barara.</p><p>Token purchases are opening later.</p></div>
+<div class="panel"><h2>{funds} tokens</h2><p>Use Balagan tokens for Wemember, Sorriest and Barara.</p></div>
+{Astro.url.searchParams.has('checkout') && <p class="notice">We’ll add your tokens after Stripe confirms payment.</p>}
+<h2>Token packs</h2>
+<OfferCards group="wallet" kind="pack" />
+<h2>Monthly token refills</h2>
+<OfferCards group="wallet" kind="subscription" />
 </Balagan>

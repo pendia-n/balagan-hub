@@ -1,5 +1,6 @@
 import { bindings } from '../../lib/hub.mjs';
 import { findLiveSession, verifySession } from '../../lib/session.mjs';
+import { refill } from '../../lib/fulfill.mjs';
 import { reserveEntry, settleRound } from '../../lib/wallet.mjs';
 export const prerender = false;
 
@@ -12,7 +13,8 @@ export async function POST({ request }) {
   const claims = await verifySession(bindings.BALAGAN_JWT_SECRET,authorization.slice(7),game);
   const user = await findLiveSession(bindings.DB,claims);
   if (!user) return new Response(null,{status:401});
-  const result = await reserveEntry(bindings.DB,{userId:user.id,game,roundId});
+  await refill(bindings.DB,user.id);
+ const result = await reserveEntry(bindings.DB,{userId:user.id,game,roundId});
   if (!result || result.state==='released') return new Response(null,{status:402});
   // This endpoint grants a seat in a round that already started.
   await settleRound(bindings.DB,game,roundId,'spent',user.id);
