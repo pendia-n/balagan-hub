@@ -3,6 +3,7 @@ import { offers, money } from '../lib/offers.mjs';
 import { bindings } from '../lib/hub.mjs';
 const { group, kind = 'all' } = Astro.props;
 const enabled = Boolean(bindings.STRIPE_SECRET_KEY && bindings.STRIPE_WEBHOOK_SECRET);
+const noVoluntaryRefund = new Set(['tokens-50','tokens-150','tokens-500','wallet-two-year','thiskicks-monthly','thiskicks-annual']);
 const cards = Object.entries(offers).filter(([,offer]) => offer.group === group &&
  (kind === 'all' || Boolean(offer.interval) === (kind === 'subscription')));
 ---
@@ -13,6 +14,8 @@ const cards = Object.entries(offers).filter(([,offer]) => offer.group === group 
     <p>{offer.interval ? offer.interval === 'month' ? 'Bills monthly' : 'Bills every ' + (offer.count === 1 ? 'year' : 'two years') : 'One payment'}</p>
     {offer.quota && <p>{offer.quota} published pitches per month.</p>}
     {offer.tokens && offer.interval && <p>{offer.tokens} tokens each month. Subscription tokens reset monthly.</p>}
+    {noVoluntaryRefund.has(id) && <small>No voluntary refunds. Statutory rights apply.</small>}
+    {id === 'wallet-monthly' && <small>Voluntary refund requests must be made within eight hours of payment. Statutory rights apply.</small>}
     {enabled && <form method="post" action={'/api/checkout?offer='+id}><button>{offer.interval ? 'Subscribe' : 'Buy once'}</button></form>}
   </section>)}
 </div>

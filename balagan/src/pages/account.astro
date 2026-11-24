@@ -1,12 +1,14 @@
 ---
 import Balagan from '../layouts/Balagan.astro';
-import { offerFor } from '../lib/offers.mjs';
+import { offerFor, money } from '../lib/offers.mjs';
 import { bindings, signedIn } from '../lib/hub.mjs';
 export const prerender = false;
 const current = await signedIn(Astro.cookies);
 if (!current) return Astro.redirect('/signin',303);
 Astro.response.headers.set('Cache-Control','no-store');
 const { results: memberships } = await bindings.DB.prepare("SELECT * FROM billing_entitlements WHERE user_id=? AND status='active' AND (paid_until IS NULL OR paid_until>unixepoch()) ORDER BY offer_id")
+  .bind(current.user.id).all();
+const { results: orders } = await bindings.DB.prepare("SELECT offer_id,amount_cents,state,created_at FROM checkout_orders WHERE user_id=? AND state IN ('paid','refunded') ORDER BY created_at DESC LIMIT 30")
   .bind(current.user.id).all();
 const date = seconds => new Date(seconds*1000).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'});
 ---
@@ -25,4 +27,9 @@ const date = seconds => new Date(seconds*1000).toLocaleDateString('en-US',{year:
     {item.paid_until && !item.cancel_at_period_end && item.id.startsWith('sub_') &&
       <form method="post" action={'/api/cancel?subscription='+encodeURIComponent(item.id)}><button>Stop renewal</button></form>}
   </section>)}
+  <h2>Purchase history</h2>
+  {!orders.length && <p>No completed Checkout purchases yet.</p>}
+  {orders.length > 0 && <ul>{orders.map(order => <li>
+    {offerFor(order.offer_id)?.name || order.offer_id} · {money(order.amount_cents)} · {date(order.created_at)} · {order.state === 'paid' ? 'Paid' : 'Refunded'}
+  </li>)}</ul>}
 </Balagan>
