@@ -1,0 +1,14 @@
+---
+import Balagan from '../layouts/Balagan.astro';
+import { bindings, signedIn } from '../lib/hub.mjs';
+import { balance } from '../lib/wallet.mjs';
+export const prerender = false;
+const current = await signedIn(Astro.cookies);
+if (!current) return Astro.redirect('/signin',303);
+Astro.response.headers.set('Cache-Control','no-store');
+const funds = await balance(bindings.DB,current.user.id);
+---
+<Balagan title="Your Balagan wallet">
+<h1>Your wallet</h1>
+<div class="panel"><h2>{funds} tokens</h2><p>Use Balagan tokens for Wemember, Sorriest and Barara.</p><p>Token purchases are opening later.</p></div>
+</Balagan>

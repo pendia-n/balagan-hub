@@ -48,8 +48,8 @@ export async function reserveEntry(db, {userId, game, roundId}, now=timestamp())
     .bind(userId,game,roundId).first();
 }
 
-export async function settleRound(db, game, roundId, outcome) {
+export async function settleRound(db, game, roundId, outcome, userId) {
   if (!Object.hasOwn(prices,game) || !['spent','released'].includes(outcome)) throw new Error('Invalid settlement');
-  return db.prepare("UPDATE game_entries SET state=? WHERE game=? AND round_id=? AND state='reserved'")
-    .bind(outcome,game,roundId).run();
+  return db.prepare("UPDATE game_entries SET state=? WHERE game=? AND round_id=? AND state='reserved' AND (? IS NULL OR user_id=?)")
+    .bind(outcome,game,roundId,userId ?? null,userId ?? null).run();
 }
