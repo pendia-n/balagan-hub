@@ -14,7 +14,7 @@ for(const game of games){
  const worker=resolve(folder,'balagan-worker');
  await mkdir(resolve(worker,'migrations'),{recursive:true});
  for(const file of ['game-auth.mjs','session.mjs'])await copyFile(resolve(project,'src/lib',file),resolve(worker,file));
- for(const file of ['room.mjs','games.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
+ for(const file of ['room.mjs','games.mjs','brand.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
  await copyFile(resolve(project,'game-worker/rooms.sql'),resolve(worker,'migrations/0001_rooms.sql'));
  await writeFile(resolve(worker,'index.mjs'),'import { createRoomWorker } from "./room.mjs";\nexport default createRoomWorker('+JSON.stringify(game.name)+');\n');
  const config={

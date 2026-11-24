@@ -1,3 +1,4 @@
+import { brandAsset, brandCSS, brandLink, iconTag } from './brand.mjs';
 import { gameAuth, gameUser } from './game-auth.mjs';
 import { games, scoreRecall } from './games.mjs';
 
@@ -13,9 +14,9 @@ const elapsed=player=>Math.max(0,millis(player.submitted_at)-millis(player.opene
 const time=()=>Math.floor(Date.now()/1000);
 function html(g,title,body,status=200){
  const [paper,ink,accent]=g.colors;
- return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+h(title)+' · '+g.name+'</title><style>'+
+ return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+h(title)+' · '+g.name+'</title>'+iconTag+'<style>'+brandCSS+
  `*{box-sizing:border-box}body{background:${paper};color:${ink};margin:0;font:17px/1.55 system-ui,sans-serif}a{color:inherit}nav,main{width:min(1070px,calc(100% - 32px));margin:auto}nav{display:flex;gap:20px;justify-content:space-between;padding:20px 0;border-bottom:1px solid currentColor}main{padding:36px 0}h1,h2{letter-spacing:-.05em;line-height:1}h1{font-size:clamp(38px,6vw,73px);margin:0 0 22px}h2{font-size:32px}.hero{display:grid;grid-template-columns:1fr 1.2fr;border:1px solid currentColor;border-radius:8px;overflow:hidden}.hero div,.panel{padding:clamp(18px,4vw,45px)}.hero img{width:100%;height:100%;object-fit:cover}.panel{border:1px solid currentColor;border-radius:8px;background:#ffffff90;max-width:780px;margin-bottom:15px}.button,button{display:inline-block;background:${accent};color:${ink};border:1px solid currentColor;border-radius:4px;font:inherit;font-weight:750;padding:10px 14px;margin:6px 8px 0 0;text-decoration:none;cursor:pointer}form{margin-top:12px}label{display:block;font-weight:700;margin-top:12px}input,textarea,select{width:100%;padding:10px;font:inherit;margin:5px 0 12px}textarea{min-height:125px}.answer{white-space:pre-wrap;overflow-wrap:anywhere}.player{border-bottom:1px solid currentColor;padding:7px 0}:focus-visible{outline:3px solid currentColor;outline-offset:4px}@media(max-width:720px){.hero{grid-template-columns:1fr}}`+
- '</style><body><nav><a href="/"><strong>'+g.name+'</strong></a><div><a href="https://balagan.live/wallet">Wallet</a> · <a href="https://balagan.live">Balagan</a></div></nav><main>'+body+'</main></body></html>', {status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
+ '</style><body><nav>'+brandLink(g.name)+'<div><a href="https://balagan.live/wallet">Wallet</a> · <a href="https://balagan.live">Balagan</a></div></nav><main>'+body+'</main></body></html>', {status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 }
 async function readForm(request) {
  if(!/^application\/x-www-form-urlencoded(?:;|$)/i.test(request.headers.get('content-type')||''))return null;
@@ -45,6 +46,7 @@ export function createRoomWorker(game){
  const field=(label)=>'<label for="answer">'+label+'</label><textarea name="answer" id="answer" required maxlength="1000"></textarea>';
  return {async fetch(request,env){
   const url = new URL(request.url), path=url.pathname, method=request.method;
+  const brand=await brandAsset(request,env,game);if(brand)return brand;
   const auth=await gameAuth(request,env,game);if(auth)return auth;
   if(method!=='GET'&&method!=='POST')return new Response(null,{status:405});
   if(method==='POST'&&request.headers.get('Origin')!==url.origin)return new Response(null,{status:403});
