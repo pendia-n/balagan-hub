@@ -119,12 +119,12 @@ export async function maintainChallenges(env,game,now=Date.now()){
 export async function challenges(request,env,game,render){
  const url=new URL(request.url),route=url.pathname,method=request.method,now=Date.now(),db=env.DB;
  const daily=game==='sorriest';
- if(!['/challenge/new','/daily','/record-host.js','/mp3-encoder.js'].includes(route)&&
+ if(!['/challenge/new','/daily','/record-host.js','/mp3-encoder.js','/mp3-encoder-license.txt'].includes(route)&&
     !/^\/(daily|challenge)\/[0-9a-f-]+(?:\/(audio|recording))?$/.test(route))return null;
  const show=(title,body,status)=>render(title,'<h1>'+esc(title)+'</h1><div class="panel">'+body+'</div>',status);
- if((route==='/record-host.js'||route==='/mp3-encoder.js')&&game==='wemember'&&method==='GET'){
+ if(['/record-host.js','/mp3-encoder.js','/mp3-encoder-license.txt'].includes(route)&&game==='wemember'&&['GET','HEAD'].includes(method)){
   const file=await env.MEDIA.get('scripts/'+route.slice(1));
-  return file?new Response(file.body,{headers:{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public,max-age=3600'}}):new Response(null,{status:404});
+  return file?new Response(method==='HEAD'?null:file.body,{headers:{'Content-Type':route.endsWith('.js')?'text/javascript; charset=utf-8':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}}):new Response(null,{status:404});
  }
  if(method==='POST'&&request.headers.get('Origin')!==url.origin)return new Response(null,{status:403});
  if(!['GET','POST'].includes(method))return new Response(null,{status:405});
@@ -210,9 +210,9 @@ export async function challenges(request,env,game,render){
    const {results}=await getPlayers(db,id);
    if(game==='wemember'&&(!room.audio_key||results.length<2))return show('Add a recording and invite a player first',link('Back to room',base),409);
    if(game==='barara'&&!results.some(x=>x.role==='opponent'))return show('Invite an opponent first',link('Back to room',base),409);
-   const end=now+(game==='wemember'?10:15)*60000;
+   const end=now+(game==='wemember'?10:8)*60000;
    await db.prepare("UPDATE challenges SET state='play',start_ms=?,submit_until=?,vote_until=? WHERE id=? AND state='lobby'")
-    .bind(now,end,game==='barara'?end+5*60000:null,id).run();
+    .bind(now,end,game==='barara'?end+2*60000:null,id).run();
   }else if(action==='enter'&&phase==='play'&&(player||(daily&&!player))&&!(game==='wemember'&&host)){
    if(game==='barara'&&room.submit_until<=now)return go(base);
    if(!player){
@@ -247,10 +247,10 @@ export async function challenges(request,env,game,render){
       AND EXISTS(SELECT 1 FROM challenges WHERE id=? AND state='play' AND submit_until>?)`)
     .bind(id,n,user.id,reply,now,id,n,id,now).run();
    if(result.meta.changes&&n===13)await db.prepare("UPDATE challenges SET state='vote',vote_until=? WHERE id=? AND state='play'")
-    .bind(now+5*60000,id).run();
+    .bind(Math.min(now+2*60000,room.vote_until),id).run();
   }else if(action==='open-vote'&&game==='barara'&&host&&phase==='play'){
    await db.prepare("UPDATE challenges SET state='vote',vote_until=? WHERE id=? AND state='play' AND (SELECT count(*) FROM challenge_turns WHERE challenge_id=?)>=2")
-    .bind(now+5*60000,id,id).run();
+    .bind(Math.min(now+2*60000,room.vote_until),id,id).run();
   }else if(action==='vote'&&player?.cost!=null&&(phase==='vote'||game==='barara'&&phase==='play'&&room.submit_until<=now)){
    const choice=fields.get('choice');
    const allowed=daily?choice!==user.id&&await db.prepare('SELECT 1 FROM challenge_players WHERE challenge_id=? AND user_id=? AND reply IS NOT NULL AND cost IS NOT NULL').bind(id,choice).first()
@@ -277,7 +277,7 @@ export async function challenges(request,env,game,render){
   content+=players.map(p=>'<div class="player">'+esc(p.username)+' · '+esc(p.role)+'</div>').join('');
   if(!player)content+=form(button('join','Join lobby'));
   if(host){
-   if(game==='wemember')content+='<section id="host-capture" data-upload="'+base+'/recording" data-ready="'+Boolean(room.audio_key)+'"><p>Read the script aloud. Vary your speed, volume and tone freely.</p><button id="record">Record microphone</button> <button id="stop" disabled>Stop and save MP3</button><label for="mp3">Or choose an MP3</label><input type="file" id="mp3" accept="audio/mpeg,.mp3"><p id="capture-status" role="status">'+(room.audio_key?'Recording ready.':'')+'</p></section><script src="/mp3-encoder.js" defer></script><script src="/record-host.js" defer></script>';
+   if(game==='wemember')content+='<section id="host-capture" data-upload="'+base+'/recording" data-ready="'+Boolean(room.audio_key)+'"><p>Read the script aloud. Vary your speed, volume and tone freely.</p><button id="record">Record microphone</button> <button id="stop" disabled>Stop and save MP3</button><label for="mp3">Or choose an MP3</label><input type="file" id="mp3" accept="audio/mpeg,.mp3"><small><a href="/mp3-encoder-license.txt">MP3 encoder license</a></small><p id="capture-status" role="status">'+(room.audio_key?'Recording ready.':'')+'</p></section><script src="/mp3-encoder.js" defer></script><script src="/record-host.js" defer></script>';
    if(game==='barara'||room.audio_key)content+=form(button('start','Start challenge'));
   }
  }else if(phase==='play'&&!(game==='barara'&&now>=room.submit_until)){

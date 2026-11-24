@@ -56,24 +56,13 @@ export function createRoomWorker(game){
   if(path==='/'&&method==='GET')return render(g.name,'<section class="hero"><div><h1>'+g.heading+'</h1>'+para(game==='wemember'?'Read a random script aloud. Friends hear it once and type what they remember.':game==='sorriest'?'Write one apology for a daily fictional scandal, then vote.':'Challenge a friend and invite up to five jurors.')+para(game==='sorriest'?'20 tokens per entry. New games open throughout the day.':g.entry)+link(game==='sorriest'?'Browse today’s contests':'Host a challenge',game==='sorriest'?'/daily':'/challenge/new')+'</div><img src="https://balagan.live/media/'+game+'-wide.png" alt=""></section>');
   const match=/^\/room\/([a-f0-9-]{36})(?:\/(recording))?$/.exec(path);
   if(path!=='/host'&&!match)return message('Page not found',link('Game home','/'),404);
+  if(path==='/host')return new Response(null,{status:303,headers:{Location:game==='sorriest'?'/daily':'/challenge/new'}});
   const user=await gameUser(request,env,game);
   if(!user){
    if(match&&method==='GET'&&!match[2])return message('You’re invited',para(g.entry)+link('Sign in to see the room',signIn(path))+link('Create an account',signIn(path)+'&action=register'));
    return redirect(signIn(path));
   }
   const now=time();
-  if(path==='/host'){
-   if(method==='GET')return message('Host a challenge',para(g.entry)+form(path,'<label for="name">Room name</label><input id="name" name="name" maxlength="48" required><label for="scenario">Choose a scenario</label><select id="scenario" name="scenario">'+g.scenarios.map(([title],i)=>'<option value="'+i+'">'+h(title)+'</option>').join('')+'</select>'+button('create','Create invitation')));
-   const values=await readForm(request);
-   const name=values?.get('name')?.trim(), scenario=Number(values?.get('scenario'));
-   if(!name||name.length>48||!Number.isInteger(scenario)||!g.scenarios[scenario])return message('Check your room details',link('Try again','/host'),400);
-   const id=crypto.randomUUID();
-   await db.batch([
-    db.prepare('INSERT INTO rooms(id,host,name,scenario,created_at) VALUES(?,?,?,?,?)').bind(id,user.id,name,scenario,now),
-    db.prepare('INSERT INTO players(room_id,user_id,username,role) VALUES(?,?,?,?)').bind(id,user.id,user.username,game==='barara'?'host':'player')
-   ]);
-   return redirect(location(id));
-  }
   const [,id,recording]=match;
   const room=await db.prepare('SELECT * FROM rooms WHERE id=?').bind(id).first();
   if(!room)return message('Room not found',link('Game home','/'),404);
