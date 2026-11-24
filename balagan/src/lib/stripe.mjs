@@ -25,3 +25,23 @@ export async function verifyWebhook(secret,body,header,now=Math.floor(Date.now()
   return difference===0;
  });
 }
+
+export function checkoutParams({id,offer,origin}){
+ const params=new URLSearchParams({
+  mode:offer.interval?'subscription':'payment','metadata[app]':'balagan','metadata[order_id]':id,
+  'line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':String(offer.cents),
+  'line_items[0][price_data][product_data][name]':offer.name,'line_items[0][quantity]':'1',
+  success_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')+'?checkout=complete',
+  cancel_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')
+ });
+ if(offer.interval){
+  params.set('line_items[0][price_data][recurring][interval]',offer.interval);
+  params.set('line_items[0][price_data][recurring][interval_count]',String(offer.count));
+  params.set('subscription_data[metadata][app]','balagan');
+  params.set('subscription_data[metadata][order_id]',id);
+ } else {
+  params.set('payment_intent_data[metadata][app]','balagan');
+  params.set('payment_intent_data[metadata][order_id]',id);
+ }
+ return params;
+}
