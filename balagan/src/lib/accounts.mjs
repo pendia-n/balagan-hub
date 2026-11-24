@@ -2,7 +2,7 @@ import { SESSION_SECONDS } from './session.mjs';
 
 const encoder = new TextEncoder();
 const nowSeconds = () => Math.floor(Date.now() / 1000);
-const iterations = 600_000;
+const iterations = 100_000;
 const randomHex = length => hex(crypto.getRandomValues(new Uint8Array(length)));
 const hosts = Object.freeze({
   thiskicks: 'thiskicks.balagan.live',
@@ -17,8 +17,11 @@ function hex(bytes) {
 function unhex(value) {
   return Uint8Array.from(value.match(/../g), byte => parseInt(byte, 16));
 }
-async function derive(password, salt) {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+async function derive(password, salt, pepper) {
+  if (!/^[0-9a-f]{64}$/i.test(pepper || '')) throw new Error('Invalid password pepper configuration');
+  const pepperKey = await crypto.subtle.importKey('raw', unhex(pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const prepared = await crypto.subtle.sign('HMAC', pepperKey, encoder.encode(password));
+  const key = await crypto.subtle.importKey('raw', prepared, 'PBKDF2', false, ['deriveBits']);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256));
 }
 export async function digest(value) {
@@ -35,17 +38,17 @@ export function validPassword(password) {
   return typeof password === 'string' && password.length >= 12 && password.length <= 128;
 }
 
-export async function hashPassword(password) {
+export async function hashPassword(password, pepper) {
   if (!validPassword(password)) throw new Error('Password must contain 12 to 128 characters.');
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await derive(password, salt);
-  return 'pbkdf2-v1:' + hex(salt) + ':' + hex(hash);
+  const hash = await derive(password, salt, pepper);
+  return 'pbkdf2-v2:' + hex(salt) + ':' + hex(hash);
 }
 
-export async function matchesPassword(password, saved = '') {
+export async function matchesPassword(password, saved = '', pepper) {
   if (!validPassword(password)) return false;
-  const parts = /^pbkdf2-v1:([0-9a-f]{32}):([0-9a-f]{64})$/.exec(saved);
-  const candidate = await derive(password, parts ? unhex(parts[1]) : new Uint8Array(16));
+  const parts = /^pbkdf2-v2:([0-9a-f]{32}):([0-9a-f]{64})$/.exec(saved);
+  const candidate = await derive(password, parts ? unhex(parts[1]) : new Uint8Array(16), pepper);
   const expected = parts ? unhex(parts[2]) : new Uint8Array(32);
   let difference = 0;
   for (let i = 0; i < expected.length; i++) difference |= expected[i] ^ candidate[i];

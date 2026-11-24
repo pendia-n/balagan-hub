@@ -48,11 +48,11 @@ export async function POST({ request, cookies, url }) {
   if (mode === 'register') {
     user = { id: crypto.randomUUID() };
     const result = await db.prepare('INSERT INTO users VALUES (?,?,?,?) ON CONFLICT(username) DO NOTHING')
-      .bind(user.id, username, await hashPassword(password), now).run();
+      .bind(user.id, username, await hashPassword(password, bindings.BALAGAN_PASSWORD_PEPPER), now).run();
     if (result.meta.changes !== 1) return error('username');
   } else {
     user = await db.prepare('SELECT id,password_hash FROM users WHERE username=?').bind(username).first();
-    if (!await matchesPassword(password, user?.password_hash)) return error('credentials');
+    if (!await matchesPassword(password, user?.password_hash, bindings.BALAGAN_PASSWORD_PEPPER)) return error('credentials');
   }
   const session = await newSession(db, user.id, now);
   const token = await signSession(bindings.BALAGAN_JWT_SECRET, session, hub, now);
