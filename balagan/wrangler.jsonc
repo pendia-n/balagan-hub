@@ -25,5 +25,11 @@
 			"binding": "PROMOS",
 			"bucket_name": "balagan-promos"
 		}
+	],
+	"routes": [
+		{
+			"pattern": "balagan.live",
+			"custom_domain": true
+		}
 	]
 }

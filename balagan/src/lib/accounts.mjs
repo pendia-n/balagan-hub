@@ -21,7 +21,7 @@ async function derive(password, salt) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256));
 }
-async function digest(value) {
+export async function digest(value) {
   return hex(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
 }
 
@@ -59,20 +59,20 @@ export async function newSession(db, userId, now = nowSeconds()) {
   return session;
 }
 
-export async function newGameCode(db, sessionId, audience, now = nowSeconds()) {
-  if (!gameHost(audience)) throw new Error('Unknown Balagan game');
+export async function newGameCode(db, sessionId, audience, challenge, now = nowSeconds()) {
+  if (!gameHost(audience) || !/^[0-9a-f]{64}$/.test(challenge)) throw new Error('Invalid game sign-in request');
   const code = randomHex(32);
   const result = await db.prepare(
-    'INSERT INTO signin_codes (digest,session_id,audience,expires_at) SELECT ?,id,?,? FROM sessions WHERE id=? AND expires_at>?'
-  ).bind(await digest(code), audience, now + 60, sessionId, now).run();
+    'INSERT INTO signin_codes (digest,session_id,audience,expires_at,challenge) SELECT ?,id,?,?,? FROM sessions WHERE id=? AND expires_at>?'
+  ).bind(await digest(code), audience, now + 60, challenge, sessionId, now).run();
   return result.meta.changes === 1 ? code : null;
 }
 
-export async function exchangeGameCode(db, code, audience, now = nowSeconds()) {
-  if (typeof code !== 'string' || !/^[0-9a-f]{64}$/.test(code) || !gameHost(audience)) return null;
+export async function exchangeGameCode(db, code, audience, verifier, now = nowSeconds()) {
+  if (typeof code !== 'string' || !/^[0-9a-f]{64}$/.test(code) || !gameHost(audience) || typeof verifier !== 'string' || !/^[0-9a-f]{64}$/.test(verifier)) return null;
   const redeemed = await db.prepare(
-    'DELETE FROM signin_codes WHERE digest=? AND audience=? AND expires_at>? RETURNING session_id'
-  ).bind(await digest(code), audience, now).first();
+    'DELETE FROM signin_codes WHERE digest=? AND audience=? AND challenge=? AND expires_at>? RETURNING session_id'
+  ).bind(await digest(code), audience, await digest(verifier), now).first();
   if (!redeemed) return null;
   return db.prepare('SELECT id,user_id,expires_at FROM sessions WHERE id=? AND expires_at>?')
     .bind(redeemed.session_id, now).first();

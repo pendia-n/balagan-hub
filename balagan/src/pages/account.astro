@@ -1,0 +1,16 @@
+---
+import Balagan from '../layouts/Balagan.astro';
+import { signedIn } from '../lib/hub.mjs';
+export const prerender = false;
+const current = await signedIn(Astro.cookies);
+if (!current) return Astro.redirect('/signin',303);
+Astro.response.headers.set('Cache-Control','no-store');
+---
+<Balagan title="Your Balagan account">
+  <h1>Your account</h1>
+  <div class="panel">
+    <h2>{current.user.username}</h2>
+    <p>Your account works in Thiskicks, Wemember, Sorriest and Barara.</p>
+    <form method="post" action="/api/account"><input type="hidden" name="mode" value="logout"><button>Sign out of all games</button></form>
+  </div>
+</Balagan>

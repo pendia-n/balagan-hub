@@ -1,0 +1,37 @@
+---
+import Balagan from '../layouts/Balagan.astro';
+import { handoff, handoffPath, signedIn } from '../lib/hub.mjs';
+export const prerender = false;
+const mode = Astro.params.auth;
+if (mode !== 'signin' && mode !== 'register') return new Response(null,{status:404});
+const info = handoff(Astro.url.searchParams);
+if (await signedIn(Astro.cookies)) return Astro.redirect(handoffPath(info),303);
+Astro.response.headers.set('Cache-Control','no-store');
+Astro.response.headers.set('Referrer-Policy','no-referrer');
+const title = mode === 'register' ? 'Create your Balagan account' : 'Sign in to Balagan';
+const other = mode === 'register' ? 'signin' : 'register';
+const code = Astro.url.searchParams.get('error');
+const errors = new Map([
+ ['format','Use a username of 3–24 letters, numbers, underscores or hyphens, and a password of 12–128 characters.'],
+ ['rate','Too many attempts. Try again in a few minutes.'],
+ ['username','That username is taken. Choose another.'],
+ ['credentials','The username or password didn’t match.']
+]);
+---
+<Balagan title={title}>
+  <h1>{title}</h1>
+  <p>One account for Thiskicks, Wemember, Sorriest and Barara.</p>
+  <div class="panel">
+    {code && errors.has(code) && <p class="notice" role="alert">{errors.get(code)}</p>}
+    <form method="post" action="/api/account">
+      <input type="hidden" name="mode" value={mode}>
+      {info && Object.entries(info).map(([name,value]) => <input type="hidden" name={name} value={value}>)}
+      <label for="username">Username</label>
+      <input id="username" name="username" required autocomplete="username" minlength="3" maxlength="24">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required minlength="12" maxlength="128" autocomplete={mode === 'register' ? 'new-password' : 'current-password'}>
+      <button>{mode === 'register' ? 'Create account' : 'Sign in'}</button>
+    </form>
+    <p><a href={'/'+other+(info ? '?' + new URLSearchParams(info) : '')}>{other === 'signin' ? 'Already have an account? Sign in' : 'Create an account'}</a></p>
+  </div>
+</Balagan>
