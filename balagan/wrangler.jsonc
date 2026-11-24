@@ -1,7 +1,9 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"compatibility_date": "2026-11-17",
-	"compatibility_flags": ["global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"global_fetch_strictly_public"
+	],
 	"name": "balagan",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
@@ -10,5 +12,18 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "balagan-auth",
+			"database_id": "2136db13-de0b-4484-8cd8-d14c835b2401"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "PROMOS",
+			"bucket_name": "balagan-promos"
+		}
+	]
 }
