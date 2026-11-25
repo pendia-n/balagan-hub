@@ -32,6 +32,11 @@ main h1{overflow-wrap:anywhere}
 .board-filter input,.board-filter select{margin-bottom:0}
 .board-filter select{font:inherit;padding:10px;border:1px solid #a9b690;border-radius:4px}
 .board-filter .check{margin:0 0 10px}
+.draft-workbench{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:32px 0}
+.draft-workbench h2{margin-top:0}
+.draft-sample{background:#263219;color:#f8fbe9;overflow-wrap:anywhere}
+.draft-sample .button{color:#263219}
+@media(max-width:720px){.draft-workbench{grid-template-columns:minmax(0,1fr)}}
 .board-pages{display:flex;flex-wrap:wrap;gap:12px}
 #board article h3{margin-top:0;overflow-wrap:anywhere}
 @media(max-width:720px){
@@ -154,6 +159,24 @@ export default {async fetch(request,env){
         </div>
         <img src="${art}" alt="An inventor presents a tiny umbrella for a houseplant" width="1672" height="941">
       </section>
+      <section class="draft-workbench" aria-label="Practice pitch">
+        <div class="panel">
+          <h2>Try a private draft</h2>
+          <label for="draft-name">Product name</label><input id="draft-name" maxlength="80" placeholder="e.g. The plant umbrella">
+          <label for="draft-copy">What does it do?</label><textarea id="draft-copy" maxlength="800" placeholder="Tell a reader who it helps and how."></textarea>
+          <p>This preview stays on this page. Copy your text before opening the publish form.</p>
+        </div>
+        <section class="panel draft-sample" aria-label="Live pitch preview">
+          <h2 id="sample-name">Your product name</h2>
+          <p id="sample-copy" class="copy">Your pitch appears here as you type.</p>
+          ${link('Open publish form','/new')}
+        </section>
+      </section>
+      <script>
+        for(const [input,output,fallback] of [["draft-name","sample-name","Your product name"],["draft-copy","sample-copy","Your pitch appears here as you type."]]){
+          document.getElementById(input).oninput=event=>{document.getElementById(output).textContent=event.target.value || fallback;};
+        }
+      </script>
       <div class="guide">
         <section>
           <h2>From idea to feedback</h2>
