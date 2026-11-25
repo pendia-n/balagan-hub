@@ -18,6 +18,6 @@ export async function POST({request,url,cookies}){
   await db.prepare('UPDATE checkout_orders SET stripe_session_id=? WHERE id=?').bind(session.id,id).run();
   return Response.redirect(session.url,303);
  } catch {
-  return new Response('Could not open checkout. Please try again.',{status:502});
+  return Response.redirect(url.origin+'/wallet?error=checkout',303);
  }
 }

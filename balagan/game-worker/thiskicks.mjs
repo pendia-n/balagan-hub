@@ -35,11 +35,11 @@ main h1{overflow-wrap:anywhere}
 @media(max-width:440px){nav{flex-wrap:wrap;padding:12px 0}nav a{min-height:40px;display:inline-flex;align-items:center}}
 `;
 function page(title, content, status=200) {
-  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(title)+' · Thiskicks</title>'+iconTag+'<style>'+brandCSS+css+guideCSS+'</style><body><nav>'+brandLink('Thiskicks')+'<div class="nav-links"><a href="/#board">Pitch board</a><a href="https://balagan.live/wallet">Wallet</a><a href="https://balagan.live">Balagan</a></div></nav><main>'+content+'</main></body></html>',{
+  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(title)+' · Thiskicks</title>'+iconTag+'<style>'+brandCSS+css+guideCSS+'</style><body><nav>'+brandLink('Thiskicks')+'<div class="nav-links"><a href="/board">Pitch board</a><a href="https://balagan.live/wallet">Wallet</a><a href="https://balagan.live">Balagan</a></div></nav><main>'+content+'</main></body></html>',{
     status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'}
   });
 }
-const error = (message,status) => page(message,'<h1>'+esc(message)+'</h1>'+link('Return to pitch board','/'),status);
+const error = (message,status) => page(message,'<h1>'+esc(message)+'</h1>'+link('Return to pitch board','/board'),status);
 const voteId = request => (request.headers.get('Cookie')||'').match(/(?:^|;\s*)__Host-thiskicks-guest=([a-f0-9-]{36})(?=;|$)/)?.[1];
 const form = (path, contents) => '<form method="post" action="'+path+'">'+contents+'</form>';
 const fmt = text => '<p class="copy">'+esc(text)+'</p>';
@@ -84,15 +84,18 @@ export default {async fetch(request,env){
   if(!['GET','HEAD','POST'].includes(request.method))return new Response(null,{status:405});
   if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return error('Invalid request origin',403);
   const db=env.DB;
-  if(path==='/'&&request.method==='GET'){
+  if(path==='/board'&&request.method==='GET'){
     const {results}=await db.prepare('SELECT id,title,body FROM thiskicks_pitches ORDER BY created_at DESC,id LIMIT 60').all();
     const rows=results.map(p=>'<article class="panel"><h3><a href="'+route(p.id)+'">'+esc(p.title)+'</a></h3>'+fmt(p.body.slice(0,180))+'</article>').join('');
-    return page('Pitch board',`
+    return page('Pitch board','<h1>Pitch board</h1><p>Browse ideas, vote, and give feedback.</p>'+link('Write a pitch','/new')+'<section id="board">'+(rows||'<p>The board is empty. Publish the first pitch.</p>')+'</section>');
+  }
+  if(path==='/'&&request.method==='GET'){
+    return page('Thiskicks',`
       <section class="hero">
         <div>
           <h1>Would anyone buy this?</h1>
           <p>Pitch something you’re building, thinking of selling, or making up for fun. Hear what people would buy, question, or change.</p>
-          ${link('Write a pitch','/new')} <a href="#board">Browse pitches</a>
+          ${link('Write a pitch','/new')} <a href="/board">Browse pitches</a>
         </div>
         <img src="${art}" alt="An inventor presents a tiny umbrella for a houseplant" width="1672" height="941">
       </section>
@@ -111,8 +114,7 @@ export default {async fetch(request,env){
           <p>Use the tokens you buy in Balagan or earn in Wemember, Sorriest and Barara. Publishing, votes and comments don’t earn tokens.</p>
           <a href="https://balagan.live/wallet">Open Balagan wallet</a>
         </section>
-      </div>
-      <section id="board"><h2>Pitch board</h2>${rows||'<p>The board is empty. Publish the first pitch.</p>'}</section>`);
+      </div>`);
   }
   if(path==='/plans'&&request.method==='GET'){
     return redirect('/#publishing');

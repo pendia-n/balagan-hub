@@ -17,6 +17,7 @@ const funds = await balance(bindings.DB,current.user.id);
 {Astro.url.searchParams.has('checkout') && <p class="notice">We’ll add your tokens after Stripe confirms payment.</p>}
 <p>Game rewards arrive in this wallet after a round ends. Tokens from packs and game rewards stay until you spend them. Subscription tokens reset each month.</p>
 <p><a href="/#tokens">See entry prices and rewards by app</a></p>
+{Astro.url.searchParams.get('error') === 'checkout' && <p class="notice" role="alert">Stripe Checkout could not open. No payment was submitted. Please try again.</p>}
 <h2>Token packs</h2>
 <OfferCards group="wallet" kind="pack" />
 <h2>Monthly token refills</h2>

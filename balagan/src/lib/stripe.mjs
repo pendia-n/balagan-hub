@@ -3,11 +3,17 @@ const text=new TextEncoder();
 const hex=bytes=>Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
 export async function stripe(key,path,params,idempotency){
  if(!key)throw new Error('Stripe credentials unavailable');
- const headers={Authorization:'Bearer '+key,'Stripe-Version':'2026-09-30.endive'};
+ const headers={Authorization:'Bearer '+key};
  if(params)headers['Content-Type']='application/x-www-form-urlencoded';
  if(idempotency)headers['Idempotency-Key']=idempotency;
  const response=await fetch(root+path,{method:params?'POST':'GET',headers,body:params,signal:AbortSignal.timeout(12000)});
- if(!response.ok)throw new Error('Stripe API request failed: '+response.status);
+ if(!response.ok){
+  const payload=await response.json().catch(()=>null);
+  const code=payload?.error?.code || payload?.error?.type;
+  const safeCode=typeof code==='string' && /^[a-z0-9_]{1,80}$/.test(code) ? code : undefined;
+  console.error('Stripe request rejected',{status:response.status,code:safeCode,requestId:response.headers.get('request-id')});
+  throw new Error('Stripe API request failed: '+response.status);
+ }
  return response.json();
 }
 
