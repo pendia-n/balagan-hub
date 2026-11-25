@@ -154,3 +154,26 @@ test('a confirmed subscription return and repeated invoice cannot double-credit 
  await fulfillStripe(env,wrap('invoice.paid',invoice));
  assert.equal(await balance(db,'u'),600);
 });
+
+test('signed webhook credits delayed paid checkout exactly once and rejects forged payloads',async t=>{
+ const {handleStripeWebhook}=await import('../src/lib/stripe-webhook.mjs');
+ const {db,sql}=fixture(t);
+ const id=crypto.randomUUID(), secret='whsec_isolated_test', now=Math.floor(Date.now()/1000);
+ sql.prepare("INSERT INTO checkout_orders(id,user_id,offer_id,amount_cents,stripe_session_id,state,created_at) VALUES(?,'u','tokens-50',500,'cs_webhook','pending',0)").run(id);
+ const env={DB:db,STRIPE_WEBHOOK_SECRET:secret};
+ const send=(type,paymentStatus,key=secret,app='balagan')=>{
+  const body=JSON.stringify(wrap(type,{id:'cs_webhook',mode:'payment',payment_status:paymentStatus,currency:'usd',amount_total:500,
+   metadata:{app,order_id:id}}));
+  const signature='t='+now+',v1='+createHmac('sha256',key).update(now+'.'+body).digest('hex');
+  return handleStripeWebhook(new Request('https://example.invalid/api/stripe-webhook',{
+   method:'POST',headers:{'Stripe-Signature':signature},body
+  }),env);
+ };
+ assert.equal((await send('checkout.session.completed','paid','wrong-secret')).status,400);
+ assert.equal((await send('checkout.session.completed','paid',secret,'another-app')).status,200);
+ assert.equal((await send('checkout.session.completed','unpaid')).status,200);
+ assert.equal(await balance(db,'u'),0);
+ assert.equal((await send('checkout.session.async_payment_succeeded','paid')).status,200);
+ assert.equal((await send('checkout.session.async_payment_succeeded','paid')).status,200);
+ assert.equal(await balance(db,'u'),50);
+});

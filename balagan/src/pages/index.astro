@@ -28,6 +28,12 @@ const games = [
     rewards: 'Spend Balagan tokens to publish. Pitch activity doesn’t award tokens.',
   },
 ];
+const gameActions = {
+  Wemember: {line:'How much can you remember after one listen?', first:'Try one listen', firstPath:'#practice', second:'Host a room', secondPath:'challenge/new'},
+  Sorriest: {line:'What would you say if you ate the last slice?', first:'Try an apology', firstPath:'#practice', second:'See today’s contests', secondPath:'daily'},
+  Barara: {line:'Two sides. One missing cookie.', first:'Give a practice verdict', firstPath:'#practice', second:'Open a court', secondPath:'challenge/new'},
+  Thiskicks: {line:'Would anyone buy your idea?', first:'Browse pitches', firstPath:'board', second:'Write a pitch', secondPath:'new'},
+};
 const packs = Object.values(offers).filter(offer => !offer.interval);
 const memberships = Object.values(offers).filter(offer => offer.interval);
 const period = {monthly:'per month',annual:'per year','two-year':'every two years'};
@@ -38,7 +44,7 @@ const membershipTerms = ['monthly','annual','two-year'];
     <div>
       <h1>Make a little trouble with friends.</h1>
       <p>Balagan brings together three social games and a public pitch board. One account gets you into all four, and one wallet holds the tokens you buy and win.</p>
-      <div class="actions"><a class="button" href="#games">Find something to play</a><a href="/register">Create a free account</a></div>
+      <div class="actions"><a class="button" href="#games">Pick a game</a><a href="https://wemember.balagan.live/#practice">Try one listen free</a></div>
     </div>
     <img src="/media/balagan-wide.png" alt="Friends laughing around a games table" width="1672" height="941" fetchpriority="high">
   </section>
@@ -48,14 +54,31 @@ const membershipTerms = ['monthly','annual','two-year'];
       <h2>Pick what to play</h2>
       <p>Start a private room, enter a daily contest, or put your idea in front of people. The rules are on each app’s home page.</p>
     </div>
-    <nav class="play-selector" aria-label="Game selector">
-      {games.map(game => <a href={'#'+game.name.toLowerCase()}>{game.name}</a>)}
-    </nav>
-    {games.map(game => <article class="game" id={game.name.toLowerCase()}>
-      <div class="game-name"><p>{game.kind}</p><h3>{game.name}</h3><a class="button" href={game.href}>Open {game.name}</a></div>
-      <p>{game.setup}</p>
-      <dl><dt>Entry</dt><dd>{game.entry}</dd><dt>Rewards</dt><dd>{game.rewards}</dd></dl>
-    </article>)}
+    <div class="game-picker" data-game-picker>
+      <div class="play-selector" aria-label="Select a game">
+        {games.map(game => <a href={'#'+game.name.toLowerCase()} data-choice={game.name.toLowerCase()}>{game.name}</a>)}
+      </div>
+      {games.map(game => {
+        const id = game.name.toLowerCase();
+        const actions = gameActions[game.name as keyof typeof gameActions];
+        return <article class:list={['game-stage',id]} id={id} data-game={id}>
+          <div class="game-copy">
+            <p class="game-kind">{game.kind}</p>
+            <h3>{game.name}</h3>
+            <p class="game-line">{actions.line}</p>
+            <p>{game.setup}</p>
+            <div class="actions">
+              <a class="button" href={game.href+actions.firstPath}>{actions.first}</a>
+              <a href={game.href+actions.secondPath}>{actions.second}</a>
+            </div>
+            <details><summary>Entry and rewards</summary>
+              <dl><dt>Entry</dt><dd>{game.entry}</dd><dt>Rewards</dt><dd>{game.rewards}</dd></dl>
+            </details>
+          </div>
+          <img src={'/media/'+id+'-wide.png'} alt="" width="1672" height="941" loading="lazy">
+        </article>;
+      })}
+    </div>
   </section>
 
   <section class="section" id="tokens">
@@ -76,6 +99,33 @@ const membershipTerms = ['monthly','annual','two-year'];
     <p><a href="https://xmincing-ypoppy.balagan.live">XMincing</a> turns a group’s answers into a song and works without a Balagan sign-in. <a href="https://orach-travel.balagan.live">Orach</a> helps you plan a trip and uses its own sign-in. Each handles its own payments.</p>
   </aside>
 </Balagan>
+<script>
+  const picker = document.querySelector('[data-game-picker]');
+  if (picker) {
+    const choices = [...picker.querySelectorAll<HTMLAnchorElement>('[data-choice]')];
+    const games = [...picker.querySelectorAll<HTMLElement>('[data-game]')];
+    function select(id: string) {
+      for (const game of games) game.hidden = game.dataset.game !== id;
+      for (const choice of choices) {
+        if (choice.dataset.choice === id) choice.setAttribute('aria-current','true');
+        else choice.removeAttribute('aria-current');
+      }
+    }
+    const hasGame = (id: string) => games.some(game => game.dataset.game === id);
+    select(hasGame(location.hash.slice(1)) ? location.hash.slice(1) : 'wemember');
+    picker.addEventListener('click', event => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('[data-choice]');
+      if (!link?.dataset.choice || event.defaultPrevented || (event instanceof MouseEvent &&
+        (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey))) return;
+      event.preventDefault();
+      history.replaceState(null,'',link.hash);
+      select(link.dataset.choice);
+    });
+    window.addEventListener('hashchange', () => {
+      if (hasGame(location.hash.slice(1))) select(location.hash.slice(1));
+    });
+  }
+</script>
 <style>
 .hero{display:grid;grid-template-columns:minmax(0,1.03fr) minmax(0,1fr);background:#3b1436;color:#fff4dc;border-radius:10px;overflow:hidden}
 .hero>div{align-self:center;padding:clamp(20px,4.4vw,56px)}
@@ -87,18 +137,26 @@ const membershipTerms = ['monthly','annual','two-year'];
 .section{margin-top:clamp(44px,7vw,86px)}
 .section-intro{margin-bottom:24px}
 .section-intro>p{margin:0}
-.play-selector{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;width:100%;min-height:0;margin:0 0 12px}
-.play-selector a{padding:8px 14px;border:1px solid #bba1c6;border-radius:4px;background:#fff7ff}
-.play-selector a:hover{background:#ffce72}
-.game{scroll-margin-top:20px}
-.game:target{background:#fff7ff}
-.game-name .button{font-size:.9em}
-.game{display:grid;grid-template-columns:minmax(145px,.72fr) minmax(0,1.15fr) minmax(0,1fr);gap:clamp(16px,3.5vw,44px);padding:22px 0;border-top:1px solid #bba1c6}
-.game>p,.game dl,.game-name p{margin:0}
-.game-name p{font-size:.84em;font-weight:700}
-.game-name h3{margin:4px 0 10px}
-.game dt{font-weight:750}
-.game dd{margin:0 0 6px}
+.game-picker{padding:clamp(10px,2vw,20px);border:1px solid #bba1c6;border-radius:12px;background:#fff7ff}
+.play-selector{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.play-selector a{display:grid;place-items:center;text-align:center;min-height:44px;padding:6px;border:1px solid #bba1c6;border-radius:5px;font-weight:750;text-decoration:none}
+.play-selector a:hover,.play-selector a[aria-current]{background:#3b1436;color:#fff4dc}
+.game-stage{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.game-stage[hidden]{display:none}
+.game-stage:last-child{margin-bottom:0}
+.game-copy{padding:clamp(19px,4vw,42px)}
+.game-stage.wemember{background:#e8def7;color:#31224d}
+.game-stage.sorriest{background:#ffdfe4;color:#501329}
+.game-stage.barara{background:#dceee8;color:#103f39}
+.game-stage.thiskicks{background:#edf3d8;color:#263219}
+.game-stage h3{font-family:Georgia,serif;font-size:clamp(2.3rem,6vw,4.5rem);margin:.12em 0}
+.game-kind{font-size:.88em;font-weight:650;margin:0}
+.game-line{font-size:1.16em;font-weight:750;margin:.45em 0}
+.game-stage img{width:100%;height:100%;object-fit:cover}
+.game-stage details{border-top:1px solid currentColor;margin-top:18px;padding-top:10px}
+.game-stage summary{font-weight:750;cursor:pointer;min-height:28px}
+.game-stage dt{font-weight:750}
+.game-stage dd{margin:0 0 6px}
 .pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:16px}
 .pricing section{background:#fff7ff;border-top:4px solid #3b1436;padding:clamp(15px,3vw,28px)}
 .pricing dl{margin:12px 0}
@@ -106,6 +164,6 @@ const membershipTerms = ['monthly','annual','two-year'];
 .pricing dd{margin:0;font-weight:750}
 .elsewhere{margin-top:45px;border-top:1px solid #bba1c6;padding-top:20px}
 .elsewhere h2{font-size:26px}
-@media(max-width:800px){.hero{grid-template-columns:minmax(0,1fr)}.hero img{height:auto;aspect-ratio:16/9;max-height:345px}.game{grid-template-columns:minmax(145px,.8fr) minmax(0,1.6fr)}.game dl{grid-column:2}}
-@media(max-width:540px){.game,.pricing{grid-template-columns:minmax(0,1fr)}.game dl{grid-column:auto}.game{gap:10px}.game h3{font-size:32px}}
+@media(max-width:800px){.hero{grid-template-columns:minmax(0,1fr)}.hero img{height:auto;aspect-ratio:16/9;max-height:345px}.game-stage{grid-template-columns:minmax(0,1fr)}.game-stage img{height:auto;aspect-ratio:16/9}}
+@media(max-width:540px){.pricing{grid-template-columns:minmax(0,1fr)}.play-selector{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
