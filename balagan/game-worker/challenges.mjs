@@ -222,7 +222,10 @@ export async function challenges(request,env,game,render){
    }
    if(player.cost==null){
     const result=await pay(request,env,game,id);
-    if(result.status===402)return show('You need more tokens',link('Open wallet','https://balagan.live/wallet'),402);
+    if(result.status===402)return show('You need more tokens',
+     text('Add tokens to your Balagan wallet, then return here to play.')+
+     '<a class="button" href="https://balagan.live/wallet" target="_blank" rel="noopener">Open wallet in a new tab</a>'+
+     link('Back to '+(daily?'contest':'room'),base),402);
     if(result.status)return show('Entry is temporarily unavailable',link('Return',base),503);
     await db.prepare('UPDATE challenge_players SET cost=? WHERE challenge_id=? AND user_id=? AND cost IS NULL')
       .bind(result.cost,id,user.id).run();
@@ -279,7 +282,11 @@ export async function challenges(request,env,game,render){
  if(game!=='wemember'||host||phase==='closed')content+=text(room.prompt.replace('|',' · '));
  if(phase==='lobby'){
   if(game==='barara')content+=text('One host, one opponent and up to five jurors. Each player pays 30 tokens to play.');
-  content+='<label for="invite">Invitation link</label><input id="invite" value="'+esc(url.origin+base)+'" readonly>';
+  content+='<section class="invite-panel"><h2>Invite friends</h2><p>Send this link to the people you want in your room. They sign in with Balagan to join.</p>'+
+   '<label for="invite">Room link</label><input id="invite" value="'+esc(url.origin+base)+'" readonly>'+
+   '<button type="button" id="copy-invite">Copy link</button><span id="invite-status" role="status"></span></section>'+
+   '<script>document.getElementById("copy-invite").onclick=async()=>{const input=document.getElementById("invite");const status=document.getElementById("invite-status");try{await navigator.clipboard.writeText(input.value);status.textContent="Link copied.";}catch{input.focus();input.select();status.textContent="Link selected. Use your browser’s copy command.";}};</script>';
+  content+='<h2>In the room</h2>';
   content+=players.map(p=>'<div class="player">'+esc(p.username)+' · '+esc(p.role)+'</div>').join('');
   if(!player)content+=form(button('join','Join lobby'));
   if(host){
@@ -288,7 +295,7 @@ export async function challenges(request,env,game,render){
   }
  }else if(phase==='play'&&!(game==='barara'&&now>=room.submit_until)){
   if(host&&game==='wemember')content+=text('Players can listen and submit until '+date(room.submit_until))+form(button('finish','Reveal when all players have replied'));
-  else if(player?.cost==null)content+=form(button('enter',game==='wemember'?'Enter · free if available, otherwise 15 tokens':'Enter · '+cost[game]+' tokens'));
+  else if(player?.cost==null)content+=form(button('enter',game==='wemember'?'Play · free if available, otherwise 15 tokens':'Play · '+cost[game]+' tokens'));
   else if(game==='wemember'){
    if(player.reply)content+=text('Answer locked. Results appear when the round closes.');
    else{

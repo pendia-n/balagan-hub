@@ -52,6 +52,10 @@ export const landingCSS = `
 .game-intro figcaption p{margin:.32em 0 0}
 .practice{border:1px solid currentColor;border-top:5px solid currentColor;padding:clamp(18px,4vw,34px);margin-bottom:28px;background:#ffffff80}
 .practice h2{margin-top:0}
+.invite-panel{background:#fff8;border:1px solid currentColor;border-radius:6px;padding:clamp(12px,3vw,22px);margin:16px 0 22px}
+.invite-panel h2{margin-top:0;font-size:1.55rem}
+.invite-panel input{display:block;margin-bottom:6px}
+#invite-status{display:inline-block;font-weight:650}
 .round-progress{display:flex;flex-wrap:wrap;gap:7px;padding:0;margin:0 0 22px;list-style:none}
 .round-progress li{padding:5px 10px;border:1px solid currentColor;border-radius:4px;font-size:.9rem}
 .round-progress [aria-current]{font-weight:800}
