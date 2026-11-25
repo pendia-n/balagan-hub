@@ -84,7 +84,11 @@ test('Wemember records a remix, prevents replay, awards typed recall and deletes
  const id=route.split('/').pop();
  const row=f.sqlite.prepare('SELECT * FROM challenges WHERE id=?').get(id);
  assert.match(row.prompt_id,/^W\d{3}$/);
- assert.ok(!(await (await f.request(route,player)).text()).includes(row.prompt));
+ const lobby=await (await f.request(route,player)).text();
+ assert.ok(!lobby.includes(row.prompt));
+ assert.ok(lobby.includes('value="https://wemember.balagan.live'+route+'" readonly'));
+ assert.match(lobby,/<button type="button" id="copy-invite">Copy link<\/button>/);
+ assert.match(lobby,/aria-current="step">Invite/);
  const frame=Buffer.alloc(313);
  frame.set([255,251,112,196]); // MPEG1 layer III, 96 kbps at 44.1 kHz.
  const sound=Buffer.concat(Array.from({length:100},()=>frame));
