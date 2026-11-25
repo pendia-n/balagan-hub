@@ -39,7 +39,7 @@ export function checkoutParams({id,offer,origin}){
   'line_items[0][price_data][product_data][name]':offer.name,
   'line_items[0][price_data][product_data][tax_code]':'txcd_10000000',
   'line_items[0][price_data][tax_behavior]':'inclusive','line_items[0][quantity]':'1',
-  success_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')+'?checkout=complete',
+  success_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')+'?checkout=complete&order='+encodeURIComponent(id),
   cancel_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')
  });
  if(offer.interval){

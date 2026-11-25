@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createHmac} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {refill,fulfillStripe} from '../src/lib/fulfill.mjs';
+import {refill,fulfillStripe,reconcileCheckout} from '../src/lib/fulfill.mjs';
 import {checkoutParams,verifyWebhook} from '../src/lib/stripe.mjs';
 import {offers} from '../src/lib/offers.mjs';
 import {balance,pitchQuote,publishPitch,reserveEntry,settleRound} from '../src/lib/wallet.mjs';
@@ -111,4 +111,27 @@ test('Thiskicks publishes the first pitch free and later pitches for 30 tokens a
  assert.equal(sql.prepare('SELECT title FROM thiskicks_pitches WHERE id=?').get(later.id).title,pitch.title);
  assert.equal(await balance(db,'u',now),20);
  assert.equal(sql.prepare("SELECT count(*) AS n FROM game_entries WHERE game='thiskicks' AND state='spent'").get().n,2);
+});
+
+test('wallet return checks ownership and confirmed Stripe payment before crediting once',async t=>{
+ const {db,sql}=fixture(t);
+ const id=crypto.randomUUID();
+ sql.prepare("INSERT INTO checkout_orders(id,user_id,offer_id,amount_cents,stripe_session_id,state,created_at) VALUES(?,'u','tokens-50',500,'cs_return','pending',0)").run(id);
+ let requests=0, payment='unpaid';
+ t.mock.method(globalThis,'fetch',async url=>{
+  requests++;
+  assert.match(String(url),/checkout\/sessions\/cs_return$/);
+  return Response.json({id:'cs_return',mode:'payment',status:'complete',payment_status:payment,
+   amount_total:500,currency:'usd',metadata:{app:'balagan',order_id:id}});
+ });
+ const env={DB:db,STRIPE_SECRET_KEY:'fixture'};
+ assert.equal(await reconcileCheckout(env,'other-user',id),null);
+ assert.equal(requests,0);
+ assert.equal(await reconcileCheckout(env,'u',id),'pending');
+ assert.equal(await balance(db,'u'),0);
+ payment='paid';
+ assert.equal(await reconcileCheckout(env,'u',id),'paid');
+ assert.equal(await reconcileCheckout(env,'u',id),'paid');
+ assert.equal(await balance(db,'u'),50);
+ assert.equal(requests,2);
 });

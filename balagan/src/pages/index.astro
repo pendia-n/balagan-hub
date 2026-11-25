@@ -48,8 +48,11 @@ const membershipTerms = ['monthly','annual','two-year'];
       <h2>Pick what to play</h2>
       <p>Start a private room, enter a daily contest, or put your idea in front of people. The rules are on each app’s home page.</p>
     </div>
-    {games.map(game => <article class="game">
-      <div class="game-name"><p>{game.kind}</p><h3>{game.name}</h3><a href={game.href}>Open {game.name} →</a></div>
+    <nav class="play-selector" aria-label="Game selector">
+      {games.map(game => <a href={'#'+game.name.toLowerCase()}>{game.name}</a>)}
+    </nav>
+    {games.map(game => <article class="game" id={game.name.toLowerCase()}>
+      <div class="game-name"><p>{game.kind}</p><h3>{game.name}</h3><a class="button" href={game.href}>Open {game.name}</a></div>
       <p>{game.setup}</p>
       <dl><dt>Entry</dt><dd>{game.entry}</dd><dt>Rewards</dt><dd>{game.rewards}</dd></dl>
     </article>)}
@@ -84,6 +87,12 @@ const membershipTerms = ['monthly','annual','two-year'];
 .section{margin-top:clamp(44px,7vw,86px)}
 .section-intro{margin-bottom:24px}
 .section-intro>p{margin:0}
+.play-selector{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;width:100%;min-height:0;margin:0 0 12px}
+.play-selector a{padding:8px 14px;border:1px solid #bba1c6;border-radius:4px;background:#fff7ff}
+.play-selector a:hover{background:#ffce72}
+.game{scroll-margin-top:20px}
+.game:target{background:#fff7ff}
+.game-name .button{font-size:.9em}
 .game{display:grid;grid-template-columns:minmax(145px,.72fr) minmax(0,1.15fr) minmax(0,1fr);gap:clamp(16px,3.5vw,44px);padding:22px 0;border-top:1px solid #bba1c6}
 .game>p,.game dl,.game-name p{margin:0}
 .game-name p{font-size:.84em;font-weight:700}

@@ -3,18 +3,26 @@ import Balagan from '../layouts/Balagan.astro';
 import OfferCards from '../components/OfferCards.astro';
 import { bindings, signedIn } from '../lib/hub.mjs';
 import { balance } from '../lib/wallet.mjs';
-import { refill } from '../lib/fulfill.mjs';
+import { reconcileCheckout, refill } from '../lib/fulfill.mjs';
 export const prerender = false;
 const current = await signedIn(Astro.cookies);
 if (!current) return Astro.redirect('/signin',303);
 Astro.response.headers.set('Cache-Control','no-store');
+const order = Astro.url.searchParams.get('order');
+let checkoutState = null;
+if (Astro.url.searchParams.get('checkout') === 'complete' && order) {
+  try { checkoutState = await reconcileCheckout(bindings,current.user.id,order); }
+  catch { checkoutState = 'pending'; }
+}
 await refill(bindings.DB,current.user.id);
 const funds = await balance(bindings.DB,current.user.id);
 ---
 <Balagan title="Your Balagan wallet">
 <h1>Your wallet</h1>
 <div class="panel"><h2>{funds} tokens</h2><p>Use Balagan tokens to play Wemember, Sorriest and Barara or publish on Thiskicks.</p></div>
-{Astro.url.searchParams.has('checkout') && <p class="notice">We’ll add your tokens after Stripe confirms payment.</p>}
+{checkoutState === 'paid' && <p class="notice" role="status">Payment confirmed. Your tokens are in your wallet.</p>}
+{(checkoutState === 'pending' || Astro.url.searchParams.has('checkout') && !order) &&
+  <p class="notice" role="status">Waiting for Stripe to confirm payment. Your balance updates after confirmation. <a href={Astro.url.pathname+Astro.url.search}>Check payment status</a></p>}
 <p>Game rewards arrive in this wallet after a round ends. Tokens from packs and game rewards stay until you spend them. Subscription tokens reset each month.</p>
 <p><a href="/#tokens">See entry prices and rewards by app</a></p>
 {Astro.url.searchParams.get('error') === 'checkout' && <p class="notice" role="alert">Stripe Checkout could not open. No payment was submitted. Please try again.</p>}

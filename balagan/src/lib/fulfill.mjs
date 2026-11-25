@@ -48,7 +48,9 @@ export async function fulfillStripe(env,event){
   await db.batch(statements);
  } else if(event.type==='invoice.paid'){
   const subscriptionId=ref(data.parent?.subscription_details?.subscription)||ref(data.subscription);
-  if(!subscriptionId)return;
+  if(!subscriptionId||data.status && data.status!=='paid')return;
+  const app=data.parent?.subscription_details?.metadata?.app;
+  if(app && app!=='balagan')return;
   const subscription=await stripe(env.STRIPE_SECRET_KEY,'subscriptions/'+encodeURIComponent(subscriptionId));
   if(subscription.metadata?.app!=='balagan'||!['active','canceled'].includes(subscription.status))return;
   const order=await db.prepare('SELECT * FROM checkout_orders WHERE id=?').bind(subscription.metadata.order_id).first();
@@ -74,4 +76,25 @@ export async function fulfillStripe(env,event){
    db.prepare("UPDATE token_grants SET expires_at=unixepoch() WHERE id=?").bind(order.id)
   ]);
  }
+}
+
+
+export async function reconcileCheckout(env,userId,orderId){
+ if(!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(orderId||''))return null;
+ const lookup=()=>env.DB.prepare('SELECT state,stripe_session_id FROM checkout_orders WHERE id=? AND user_id=?')
+  .bind(orderId,userId).first();
+ const order=await lookup();
+ if(!order||order.state!=='pending'||!order.stripe_session_id)return order?.state ?? null;
+ const session=await stripe(env.STRIPE_SECRET_KEY,'checkout/sessions/'+encodeURIComponent(order.stripe_session_id));
+ if(session.id!==order.stripe_session_id||session.metadata?.app!=='balagan'||session.metadata?.order_id!==orderId||
+    session.status!=='complete'||session.payment_status!=='paid')return 'pending';
+ if(session.mode==='payment'){
+  await fulfillStripe(env,{type:'checkout.session.completed',data:{object:session}});
+ }else if(session.mode==='subscription'&&ref(session.invoice)){
+  const invoice=await stripe(env.STRIPE_SECRET_KEY,'invoices/'+encodeURIComponent(ref(session.invoice)));
+  if(invoice.status==='paid'&&ref(invoice.parent?.subscription_details?.subscription||invoice.subscription)===ref(session.subscription)){
+   await fulfillStripe(env,{type:'invoice.paid',data:{object:invoice}});
+  }
+ }
+ return (await lookup())?.state ?? null;
 }

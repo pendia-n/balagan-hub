@@ -48,6 +48,10 @@ export const landingCSS = `
 .game-intro img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
 .game-intro figcaption{padding:16px 19px;font-size:.94rem}
 .game-intro figcaption p{margin:.32em 0 0}
+.practice{border:1px solid currentColor;border-top:5px solid currentColor;padding:clamp(18px,4vw,34px);margin-bottom:28px;background:#ffffff80}
+.practice h2{margin-top:0}
+.practice fieldset{border:0;padding:0;margin:0}
+.practice textarea,.practice input{max-width:600px}
 .game-guide{border-top:1px solid currentColor;padding:26px 0 12px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:clamp(18px,5vw,52px)}
 .game-guide h2{margin:0 0 18px}
 .game-guide ol{padding-left:24px;margin:0}
@@ -59,6 +63,71 @@ nav>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}fieldset{min-wid
 @media(max-width:720px){.game-intro,.game-guide{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:440px){nav{flex-wrap:wrap;gap:4px 16px;padding:12px 0}nav>div a{min-height:40px;display:inline-flex;align-items:center}main{padding-top:24px}}
 `;
+
+function practice(game, sample) {
+  if(game==='barara')return `
+    <section class="practice" aria-labelledby="practice-title">
+      <h2 id="practice-title">Give a practice verdict</h2>
+      <p><strong>Host:</strong> The plate was empty. There were crumbs on their sleeve.</p>
+      <p><strong>Opponent:</strong> I carried the plate from the kitchen. The crumbs were already there.</p>
+      <button type="button" data-verdict="host">Side with the host</button>
+      <button type="button" data-verdict="opponent">Side with the opponent</button>
+      <p id="practice-result" role="status"></p>
+    </section>
+    <script>
+      for(const button of document.querySelectorAll("[data-verdict]")){
+        button.onclick=()=>{
+          document.getElementById("practice-result").textContent="Practice verdict: "+(button.dataset.verdict==="host"?"the host wins.":"the opponent wins.")+" In a real room, the jury votes in private.";
+        };
+      }
+    </script>`;
+  if(game==='sorriest')return `
+    <section class="practice" aria-labelledby="practice-title">
+      <h2 id="practice-title">Try an apology</h2><p>${sample[1]}</p>
+      <label for="practice-reply">Your practice apology</label>
+      <textarea id="practice-reply" maxlength="500"></textarea>
+      <button type="button" id="practice-preview">Preview apology</button>
+      <p id="practice-result" role="status" class="answer"></p>
+    </section>
+    <script>
+      document.getElementById("practice-preview").onclick=()=>{
+        const draft=document.getElementById("practice-reply").value.trim();
+        document.getElementById("practice-result").textContent=draft || "Write a few words first.";
+      };
+    </script>`;
+  return `
+    <section class="practice" aria-labelledby="practice-title">
+      <h2 id="practice-title">Try one listen</h2>
+      <p>Listen for the name, the object and the destination.</p>
+      <button type="button" id="practice-listen">Play practice clip</button>
+      <fieldset id="practice-fields" disabled>
+        <label for="practice-reply">What do you remember?</label>
+        <input id="practice-reply">
+        <button type="button" id="practice-score">Check recall</button>
+      </fieldset>
+      <p id="practice-result" role="status"></p>
+    </section>
+    <script>
+      const listen = document.getElementById("practice-listen");
+      const result = document.getElementById("practice-result");
+      listen.onclick=()=>{
+        listen.disabled=true;
+        const ready=()=>{document.getElementById("practice-fields").disabled=false;result.textContent="Type the details you remember.";};
+        if(!("speechSynthesis" in window)){result.textContent="Audio practice is unavailable in this browser.";return;}
+        const clip=new SpeechSynthesisUtterance("Lena took a yellow umbrella to the library.");
+        clip.lang="en";
+        clip.onend=ready;
+        clip.onerror=()=>{listen.disabled=false;result.textContent="Could not play the clip. Try again.";};
+        speechSynthesis.speak(clip);
+      };
+      document.getElementById("practice-score").onclick=()=>{
+        const answer=document.getElementById("practice-reply").value.toLowerCase();
+        const score=["lena","yellow umbrella","library"].filter(x=>answer.includes(x)).length;
+        result.textContent=score+" out of 3 details. Lena took a yellow umbrella to the library.";
+        document.getElementById("practice-fields").disabled=true;
+      };
+    </script>`;
+}
 
 export function gameLanding(game) {
   const {title,intro,action,sample,steps,entry,rewards}=rules[game];
@@ -75,6 +144,7 @@ export function gameLanding(game) {
         <figcaption><strong>${sample[0]}</strong><p>${sample[1]}</p></figcaption>
       </figure>
     </section>
+    ${practice(game,sample)}
     <div class="game-guide" id="how-to-play">
       <section>
         <h2>How to play</h2>
