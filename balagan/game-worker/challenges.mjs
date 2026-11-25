@@ -270,7 +270,13 @@ export async function challenges(request,env,game,render){
  if(!daily&&!player&&phase!=='lobby')return show('This private room has already started',link('Game home','/'),409);
  const {results:players}=await getPlayers(db,id);
  if(phase==='scheduled')return show(room.name,text('Opens '+date(room.start_ms)));
- let content=game!=='wemember'||host||phase==='closed'?text(room.prompt.replace('|',' · ')):'';
+ const phases=daily?[['play','Write'],['vote','Vote'],['closed','Results']]
+  :game==='barara'?[['lobby','Invite'],['play','Argue'],['vote','Verdict'],['closed','Results']]
+  :[['lobby','Invite'],['play','Listen and recall'],['closed','Results']];
+ const displayedPhase=game==='barara'&&phase==='play'&&now>=room.submit_until?'vote':phase;
+ let content='<ol class="round-progress" aria-label="Round progress">'+phases.map(([key,label])=>
+  '<li'+(key===displayedPhase?' aria-current="step"':'')+'>'+label+'</li>').join('')+'</ol>';
+ if(game!=='wemember'||host||phase==='closed')content+=text(room.prompt.replace('|',' · '));
  if(phase==='lobby'){
   if(game==='barara')content+=text('One host, one opponent and up to five jurors. Each player pays 30 tokens to play.');
   content+='<label for="invite">Invitation link</label><input id="invite" value="'+esc(url.origin+base)+'" readonly>';

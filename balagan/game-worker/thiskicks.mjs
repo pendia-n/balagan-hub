@@ -164,17 +164,23 @@ export default {async fetch(request,env){
           <h2>Try a private draft</h2>
           <label for="draft-name">Product name</label><input id="draft-name" maxlength="80" placeholder="e.g. The plant umbrella">
           <label for="draft-copy">What does it do?</label><textarea id="draft-copy" maxlength="800" placeholder="Tell a reader who it helps and how."></textarea>
-          <p>This preview stays on this page. Copy your text before opening the publish form.</p>
+          <p>Your draft stays in this tab and carries over to the publish form.</p>
         </div>
         <section class="panel draft-sample" aria-label="Live pitch preview">
           <h2 id="sample-name">Your product name</h2>
           <p id="sample-copy" class="copy">Your pitch appears here as you type.</p>
-          ${link('Open publish form','/new')}
+          ${link('Continue with draft','/new?draft=1')}
         </section>
       </section>
       <script>
         for(const [input,output,fallback] of [["draft-name","sample-name","Your product name"],["draft-copy","sample-copy","Your pitch appears here as you type."]]){
-          document.getElementById(input).oninput=event=>{document.getElementById(output).textContent=event.target.value || fallback;};
+          const field=document.getElementById(input);
+          try { field.value=sessionStorage.getItem("thiskicks-"+input)||""; } catch {}
+          document.getElementById(output).textContent=field.value || fallback;
+          field.oninput=()=>{
+            document.getElementById(output).textContent=field.value || fallback;
+            try { sessionStorage.setItem("thiskicks-"+input,field.value); } catch {}
+          };
         }
       </script>
       <div class="guide">
@@ -199,7 +205,7 @@ export default {async fetch(request,env){
   }
   if(path==='/new'){
     const user=await gameUser(request,env,game);
-    if(!user)return redirect('/auth/start?next=%2Fnew');
+    if(!user)return redirect('/auth/start?next='+encodeURIComponent(path+url.search));
     await refill(db,user.id);
     const renderForm = async (id, title='', body='', notice='', status=200) => {
       const quote=await pitchQuote(db,user.id);
@@ -223,6 +229,7 @@ export default {async fetch(request,env){
             <label class="check"><input type="checkbox" name="confirmed" value="yes" required> I understand the pitch will be public and I can’t edit or delete it after publishing.</label>
             <button>Publish pitch · ${price}</button>
           </form>
+          ${request.method==='GET'&&url.searchParams.get('draft')==='1'?'<script>try { document.getElementById("title").value=sessionStorage.getItem("thiskicks-draft-name")||""; document.getElementById("body").value=sessionStorage.getItem("thiskicks-draft-copy")||""; } catch {}</script>':''}
         </div>`,status);
     };
     if(request.method==='GET')return renderForm(crypto.randomUUID());

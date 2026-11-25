@@ -50,6 +50,10 @@ export const landingCSS = `
 .game-intro figcaption p{margin:.32em 0 0}
 .practice{border:1px solid currentColor;border-top:5px solid currentColor;padding:clamp(18px,4vw,34px);margin-bottom:28px;background:#ffffff80}
 .practice h2{margin-top:0}
+.round-progress{display:flex;flex-wrap:wrap;gap:7px;padding:0;margin:0 0 22px;list-style:none}
+.round-progress li{padding:5px 10px;border:1px solid currentColor;border-radius:4px;font-size:.9rem}
+.round-progress [aria-current]{font-weight:800}
+.round-progress [aria-current]{background:#fff;box-shadow:0 3px 0 currentColor}
 .practice fieldset{border:0;padding:0;margin:0}
 .practice textarea,.practice input{max-width:600px}
 .game-guide{border-top:1px solid currentColor;padding:26px 0 12px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:clamp(18px,5vw,52px)}
@@ -66,7 +70,7 @@ nav>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}fieldset{min-wid
 
 function practice(game, sample) {
   if(game==='barara')return `
-    <section class="practice" aria-labelledby="practice-title">
+    <section class="practice" id="practice" aria-labelledby="practice-title">
       <h2 id="practice-title">Give a practice verdict</h2>
       <p><strong>Host:</strong> The plate was empty. There were crumbs on their sleeve.</p>
       <p><strong>Opponent:</strong> I carried the plate from the kitchen. The crumbs were already there.</p>
@@ -82,7 +86,7 @@ function practice(game, sample) {
       }
     </script>`;
   if(game==='sorriest')return `
-    <section class="practice" aria-labelledby="practice-title">
+    <section class="practice" id="practice" aria-labelledby="practice-title">
       <h2 id="practice-title">Try an apology</h2><p>${sample[1]}</p>
       <label for="practice-reply">Your practice apology</label>
       <textarea id="practice-reply" maxlength="500"></textarea>
@@ -96,7 +100,7 @@ function practice(game, sample) {
       };
     </script>`;
   return `
-    <section class="practice" aria-labelledby="practice-title">
+    <section class="practice" id="practice" aria-labelledby="practice-title">
       <h2 id="practice-title">Try one listen</h2>
       <p>Listen for the name, the object and the destination.</p>
       <button type="button" id="practice-listen">Play practice clip</button>
@@ -110,15 +114,21 @@ function practice(game, sample) {
     <script>
       const listen = document.getElementById("practice-listen");
       const result = document.getElementById("practice-result");
-      listen.onclick=()=>{
+      listen.onclick=async()=>{
         listen.disabled=true;
-        const ready=()=>{document.getElementById("practice-fields").disabled=false;result.textContent="Type the details you remember.";};
-        if(!("speechSynthesis" in window)){result.textContent="Audio practice is unavailable in this browser.";return;}
-        const clip=new SpeechSynthesisUtterance("Lena took a yellow umbrella to the library.");
-        clip.lang="en";
-        clip.onend=ready;
-        clip.onerror=()=>{listen.disabled=false;result.textContent="Could not play the clip. Try again.";};
-        speechSynthesis.speak(clip);
+        const clip=new Audio("https://balagan.live/wemember-practice.mp3");
+        clip.onended=()=>{
+          document.getElementById("practice-fields").disabled=false;
+          result.textContent="Type the details you remember.";
+          document.getElementById("practice-reply").focus();
+        };
+        try {
+          await clip.play();
+          result.textContent="Listen for three details.";
+        } catch {
+          listen.disabled=false;
+          result.textContent="Could not play the clip. Try again.";
+        }
       };
       document.getElementById("practice-score").onclick=()=>{
         const answer=document.getElementById("practice-reply").value.toLowerCase();
@@ -137,7 +147,7 @@ export function gameLanding(game) {
         <h1>${title}</h1>
         <p>${intro}</p>
         <a class="button" href="${action[1]}">${action[0]}</a>
-        <a href="#how-to-play">How to play</a>
+        <a href="#practice">Try it free</a> · <a href="#how-to-play">How to play</a>
       </div>
       <figure>
         <img src="https://balagan.live/media/${game}-wide.png" alt="" width="1672" height="941">

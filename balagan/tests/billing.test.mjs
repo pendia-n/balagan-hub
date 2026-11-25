@@ -135,3 +135,22 @@ test('wallet return checks ownership and confirmed Stripe payment before crediti
  assert.equal(await balance(db,'u'),50);
  assert.equal(requests,2);
 });
+
+test('a confirmed subscription return and repeated invoice cannot double-credit a refill',async t=>{
+ const {db,sql}=fixture(t);
+ const id=crypto.randomUUID(), start=Math.floor(Date.now()/1000)-60, end=start+86400*28;
+ sql.prepare("INSERT INTO checkout_orders(id,user_id,offer_id,amount_cents,stripe_session_id,state,created_at) VALUES(?,'u','wallet-monthly',1200,'cs_monthly','pending',0)").run(id);
+ const invoice={id:'in_monthly',status:'paid',currency:'usd',amount_paid:1200,parent:{subscription_details:{subscription:'sub_monthly'}},
+  lines:{data:[{period:{start,end},parent:{subscription_item_details:{subscription:'sub_monthly'}}}]}};
+ const session={id:'cs_monthly',mode:'subscription',status:'complete',payment_status:'paid',invoice:invoice.id,subscription:'sub_monthly',
+  metadata:{app:'balagan',order_id:id}};
+ const subscription={id:'sub_monthly',status:'active',metadata:session.metadata};
+ t.mock.method(globalThis,'fetch',async url=>Response.json(
+  String(url).includes('/checkout/sessions/')?session:String(url).includes('/invoices/')?invoice:subscription
+ ));
+ const env={DB:db,STRIPE_SECRET_KEY:'fixture'};
+ assert.equal(await reconcileCheckout(env,'u',id),'paid');
+ assert.equal(await balance(db,'u'),600);
+ await fulfillStripe(env,wrap('invoice.paid',invoice));
+ assert.equal(await balance(db,'u'),600);
+});
