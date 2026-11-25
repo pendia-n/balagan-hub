@@ -26,6 +26,13 @@ main h1{overflow-wrap:anywhere}
 .guide .panel{margin:0}
 .check{display:flex;align-items:baseline;gap:10px;font-weight:500}
 .check input{width:auto;margin:0}
+.board-filter{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin:20px 0}
+.board-filter>div:first-child{flex:1 1 220px}
+.board-filter label,.board-filter input{margin-top:0}
+.board-filter input,.board-filter select{margin-bottom:0}
+.board-filter select{font:inherit;padding:10px;border:1px solid #a9b690;border-radius:4px}
+.board-filter .check{margin:0 0 10px}
+.board-pages{display:flex;flex-wrap:wrap;gap:12px}
 #board article h3{margin-top:0;overflow-wrap:anywhere}
 @media(max-width:720px){
  .hero,.guide,.columns{grid-template-columns:minmax(0,1fr)}
@@ -85,9 +92,57 @@ export default {async fetch(request,env){
   if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return error('Invalid request origin',403);
   const db=env.DB;
   if(path==='/board'&&request.method==='GET'){
-    const {results}=await db.prepare('SELECT id,title,body FROM thiskicks_pitches ORDER BY created_at DESC,id LIMIT 60').all();
-    const rows=results.map(p=>'<article class="panel"><h3><a href="'+route(p.id)+'">'+esc(p.title)+'</a></h3>'+fmt(p.body.slice(0,180))+'</article>').join('');
-    return page('Pitch board','<h1>Pitch board</h1><p>Browse ideas, vote, and give feedback.</p>'+link('Write a pitch','/new')+'<section id="board">'+(rows||'<p>The board is empty. Publish the first pitch.</p>')+'</section>');
+    const count=20;
+    const query=(url.searchParams.get('q')||'').trim().slice(0,120);
+    const terms=query.match(/[\p{L}\p{N}]+/gu)?.slice(0,12) ?? [];
+    const oldest=url.searchParams.get('sort')==='oldest';
+    const withImage=url.searchParams.get('image')==='1';
+    const before=url.searchParams.get('before');
+    const token=before || url.searchParams.get('after') || '';
+    const [time, id]=token.split('.');
+    const valid=/^\d{1,15}$/.test(time) && pitchId.test(id);
+    const reverse=Boolean(before && valid);
+    const ascending=oldest!==reverse;
+    const conditions=[], binds=[];
+    if(terms.length){
+      conditions.push('thiskicks_pitch_search MATCH ?');
+      binds.push(terms.map(term=>'"'+term+'"*').join(' '));
+    }
+    if(withImage)conditions.push('p.image_key IS NOT NULL');
+    if(valid){
+      conditions.push('(p.created_at,p.id) '+(ascending?'>':'<')+' (?,?)');
+      binds.push(Number(time),id);
+    }
+    const searchJoin=terms.length?' JOIN thiskicks_pitch_search ON thiskicks_pitch_search.rowid=p.rowid':'';
+    const where=conditions.length?' WHERE '+conditions.join(' AND '):'';
+    const order=ascending?' ASC':' DESC';
+    const {results}=await db.prepare('SELECT p.id,p.title,p.body,p.created_at FROM thiskicks_pitches p'+searchJoin+where+
+      ' ORDER BY p.created_at'+order+',p.id'+order+' LIMIT ?').bind(...binds,count+1).all();
+    const extra=results.length>count;
+    const pitches=results.slice(0,count);
+    if(reverse)pitches.reverse();
+    const rows=pitches.map(p=>'<article class="panel"><h3><a href="'+route(p.id)+'">'+esc(p.title)+'</a></h3>'+fmt(p.body.slice(0,180))+'</article>').join('');
+    const pageUrl=(direction,pitch)=>{
+      const params=new URLSearchParams({q:query,sort:oldest?'oldest':'newest'});
+      if(withImage)params.set('image','1');
+      if(pitch)params.set(direction,pitch.created_at+'.'+pitch.id);
+      return '/board?'+params;
+    };
+    return page('Pitch board',`
+      <h1>Pitch board</h1>
+      <p>Browse ideas, vote, and give feedback.</p>
+      ${link('Write a pitch','/new')}
+      <form class="panel board-filter" method="get" action="/board">
+        <div><label for="q">Search pitches</label><input type="search" id="q" name="q" maxlength="120" value="${esc(query)}" placeholder="Product name or keyword"></div>
+        <div><label for="sort">Sort by</label><select id="sort" name="sort"><option value="newest">Newest first</option><option value="oldest" ${oldest?'selected':''}>Oldest first</option></select></div>
+        <label class="check"><input type="checkbox" name="image" value="1" ${withImage?'checked':''}> With images</label>
+        <div><button>Apply filters</button> <a href="/board">Clear</a></div>
+      </form>
+      <section id="board">${rows||(query||withImage||valid?'<p>No pitches match this view. <a href="/board">View all pitches</a>.</p>':'<p>No pitches have been published yet. <a href="/new">Publish the first pitch</a>.</p>')}</section>
+      <div class="board-pages" aria-label="Pitch pages">
+        ${pitches.length&&(reverse?extra:valid)?link('Previous page',pageUrl('before',pitches[0])):''}
+        ${pitches.length&&(reverse?valid:extra)?link('Next page',pageUrl('after',pitches.at(-1))):''}
+      </div>`);
   }
   if(path==='/'&&request.method==='GET'){
     return page('Thiskicks',`
