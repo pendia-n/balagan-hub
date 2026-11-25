@@ -43,7 +43,7 @@ const membershipTerms = ['monthly','annual','two-year'];
   <section class="section" id="games">
     <div class="section-intro">
       <h1>Pick what to play.</h1>
-      <p>Open a private room, try a daily challenge, or share a product pitch.</p>
+      <p>Three social games and a public pitch board.</p>
     </div>
     <div class="game-picker" data-game-picker>
       <div class="play-selector" aria-label="Select a game">
@@ -57,12 +57,12 @@ const membershipTerms = ['monthly','annual','two-year'];
             <p class="game-kind">{game.kind}</p>
             <h3>{game.name}</h3>
             <p class="game-line">{actions.line}</p>
-            <p>{game.setup}</p>
             <div class="actions">
               <a class="button" href={game.href+actions.firstPath}>{actions.first}</a>
               <a href={game.href+actions.secondPath}>{actions.second}</a>
             </div>
-            <details><summary>Entry and rewards</summary>
+            <details><summary>Rules, entry and rewards</summary>
+              <p>{game.setup}</p>
               <dl><dt>Entry</dt><dd>{game.entry}</dd><dt>Rewards</dt><dd>{game.rewards}</dd></dl>
             </details>
           </div>
