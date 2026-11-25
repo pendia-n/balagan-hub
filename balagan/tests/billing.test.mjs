@@ -83,6 +83,8 @@ test('every offer creates Checkout with inline USD pricing and the intended recu
   const form=checkoutParams({id:'fixture',offer:offers[id],origin:'https://balagan.live'});
   const base='line_items[0][price_data]';
   assert.equal(form.get(base+'[currency]'),'usd');
+  assert.equal(form.get(base+'[product_data][tax_code]'),'txcd_10000000');
+  assert.equal(form.get(base+'[tax_behavior]'),'inclusive');
   assert.equal(form.get(base+'[unit_amount]'),String(amount));
   assert.equal(form.get('mode'),interval?'subscription':'payment');
   assert.equal(form.get(base+'[recurring][interval]'),interval);

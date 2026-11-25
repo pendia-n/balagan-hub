@@ -6,7 +6,7 @@ export async function stripe(key,path,params,idempotency){
  const headers={Authorization:'Bearer '+key};
  if(params)headers['Content-Type']='application/x-www-form-urlencoded';
  if(idempotency)headers['Idempotency-Key']=idempotency;
- const response=await fetch(root+path,{method:params?'POST':'GET',headers,body:params,signal:AbortSignal.timeout(12000)});
+ const response=await fetch(root+path,{method:params?'POST':'GET',headers,body:params?.toString(),signal:AbortSignal.timeout(12000)});
  if(!response.ok){
   const payload=await response.json().catch(()=>null);
   const code=payload?.error?.code || payload?.error?.type;
@@ -36,7 +36,9 @@ export function checkoutParams({id,offer,origin}){
  const params=new URLSearchParams({
   mode:offer.interval?'subscription':'payment','metadata[app]':'balagan','metadata[order_id]':id,
   'line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':String(offer.cents),
-  'line_items[0][price_data][product_data][name]':offer.name,'line_items[0][quantity]':'1',
+  'line_items[0][price_data][product_data][name]':offer.name,
+  'line_items[0][price_data][product_data][tax_code]':'txcd_10000000',
+  'line_items[0][price_data][tax_behavior]':'inclusive','line_items[0][quantity]':'1',
   success_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')+'?checkout=complete',
   cancel_url:origin+(offer.group==='wallet'?'/wallet':'/publishing')
  });
