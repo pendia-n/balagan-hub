@@ -40,19 +40,10 @@ const period = {monthly:'per month',annual:'per year','two-year':'every two year
 const membershipTerms = ['monthly','annual','two-year'];
 ---
 <Balagan>
-  <section class="hero">
-    <div>
-      <h1>Make a little trouble with friends.</h1>
-      <p>Balagan brings together three social games and a public pitch board. One account gets you into all four, and one wallet holds the tokens you buy and win.</p>
-      <div class="actions"><a class="button" href="#games">Pick a game</a><a href="https://wemember.balagan.live/#practice">Try one listen free</a></div>
-    </div>
-    <img src="/media/balagan-wide.png" alt="Friends laughing around a games table" width="1672" height="941" fetchpriority="high">
-  </section>
-
   <section class="section" id="games">
     <div class="section-intro">
-      <h2>Pick what to play</h2>
-      <p>Start a private room, enter a daily contest, or put your idea in front of people. The rules are on each app’s home page.</p>
+      <h1>Pick what to play.</h1>
+      <p>Open a private room, try a daily challenge, or share a product pitch.</p>
     </div>
     <div class="game-picker" data-game-picker>
       <div class="play-selector" aria-label="Select a game">
@@ -79,6 +70,15 @@ const membershipTerms = ['monthly','annual','two-year'];
         </article>;
       })}
     </div>
+  </section>
+
+  <section class="hero">
+    <div>
+      <h2>Make a little trouble with friends.</h2>
+      <p>Balagan brings together three social games and a public pitch board. One account gets you into all four, and one wallet holds the tokens you buy and win.</p>
+      <div class="actions"><a class="button" href="/register">Create a free account</a><a href="#games">Back to games</a></div>
+    </div>
+    <img src="/media/balagan-wide.png" alt="Friends laughing around a games table" width="1672" height="941" loading="lazy">
   </section>
 
   <section class="section" id="tokens">
@@ -127,9 +127,9 @@ const membershipTerms = ['monthly','annual','two-year'];
   }
 </script>
 <style>
-.hero{display:grid;grid-template-columns:minmax(0,1.03fr) minmax(0,1fr);background:#3b1436;color:#fff4dc;border-radius:10px;overflow:hidden}
+.hero{margin-top:clamp(36px,6vw,66px);display:grid;grid-template-columns:minmax(0,1.03fr) minmax(0,1fr);background:#3b1436;color:#fff4dc;border-radius:10px;overflow:hidden}
 .hero>div{align-self:center;padding:clamp(20px,4.4vw,56px)}
-.hero h1{font-family:Georgia,serif;font-size:clamp(2.65rem,6vw,5.2rem)}
+.hero h2{font-family:Georgia,serif;font-size:clamp(2rem,4vw,3.65rem)}
 .hero p{font-size:1.06em;max-width:39ch}
 .hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:60% center}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
@@ -137,6 +137,10 @@ const membershipTerms = ['monthly','annual','two-year'];
 .section{margin-top:clamp(44px,7vw,86px)}
 .section-intro{margin-bottom:24px}
 .section-intro>p{margin:0}
+#games{margin-top:0}
+#games h1{font-family:Georgia,serif;font-size:clamp(2.65rem,6vw,5.2rem);margin-bottom:10px}
+#games .section-intro{margin-bottom:18px}
+@media(max-width:540px){#games .section-intro{margin-bottom:12px}.game-copy{padding:16px}.game-copy p{margin-block:8px}}
 .game-picker{padding:clamp(10px,2vw,20px);border:1px solid #bba1c6;border-radius:12px;background:#fff7ff}
 .play-selector{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
 .play-selector a{display:grid;place-items:center;text-align:center;min-height:44px;padding:6px;border:1px solid #bba1c6;border-radius:5px;font-weight:750;text-decoration:none}

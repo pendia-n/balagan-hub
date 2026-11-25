@@ -44,6 +44,8 @@ export const landingCSS = `
 .game-intro{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:stretch;gap:clamp(20px,5vw,64px);padding:0 0 clamp(26px,5vw,56px)}
 .game-intro h1{font-family:Georgia,serif;font-weight:700;font-size:clamp(2.65rem,7vw,5.3rem);margin:0 0 .26em}
 .game-intro p{max-width:42ch}
+.game-intro .practice-link{display:inline-flex;align-items:center;min-height:44px;margin-right:12px;font-weight:750}
+.practice{scroll-margin-top:12px}
 .game-intro figure{margin:0;border:1px solid currentColor;align-self:start;background:#ffffff68}
 .game-intro img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
 .game-intro figcaption{padding:16px 19px;font-size:.94rem}
@@ -64,7 +66,11 @@ export const landingCSS = `
 .game-guide aside p{margin:.2em 0 1em}
 .game-guide h3{margin:0}
 nav>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}fieldset{min-width:0}
-@media(max-width:720px){.game-intro,.game-guide{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:720px){
+ .game-intro,.game-guide{grid-template-columns:minmax(0,1fr)}
+ .game-intro img{aspect-ratio:2.45/1}
+ .game-intro figcaption{padding:12px 16px}
+}
 @media(max-width:440px){nav{flex-wrap:wrap;gap:4px 16px;padding:12px 0}nav>div a{min-height:40px;display:inline-flex;align-items:center}main{padding-top:24px}}
 `;
 
@@ -147,7 +153,7 @@ export function gameLanding(game) {
         <h1>${title}</h1>
         <p>${intro}</p>
         <a class="button" href="${action[1]}">${action[0]}</a>
-        <a href="#practice">Try it free</a> · <a href="#how-to-play">How to play</a>
+        <a class="practice-link" href="#practice">Try it free</a> <a href="#how-to-play">How to play</a>
       </div>
       <figure>
         <img src="https://balagan.live/media/${game}-wide.png" alt="" width="1672" height="941">
