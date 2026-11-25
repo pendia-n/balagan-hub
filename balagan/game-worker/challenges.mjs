@@ -133,7 +133,7 @@ export async function challenges(request,env,game,render){
   const today=Math.floor(now/day)*day;
   const {results}=await db.prepare("SELECT id,name,start_ms,submit_until,vote_until FROM challenges WHERE vote_until>? AND start_ms<? ORDER BY start_ms DESC")
     .bind(now,today+day).all();
-  return show('Daily Sorriest',text('19 contests open over the UTC day. Each entry costs 20 tokens. One apology up to 500 characters per contest.')+
+  return show('Daily Sorriest',text('19 contests open over the UTC day. Each entry costs 20 tokens. One apology up to 500 characters per contest.')+link('How to play and earn tokens','/#how-to-play')+
     results.map(row=>'<div class="player">'+esc(row.name)+' · '+(row.start_ms>now?'Opens '+date(row.start_ms):row.submit_until>now?'Accepting entries until '+date(row.submit_until):'Voting until '+date(row.vote_until))+link('View contest',path(game,row.id))+'</div>').join(''));
  }
  if(route==='/challenge/new'&&!daily){

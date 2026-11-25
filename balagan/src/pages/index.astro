@@ -1,27 +1,102 @@
 ---
 import Balagan from '../layouts/Balagan.astro';
+import { money, offers } from '../lib/offers.mjs';
+
 const games = [
-  ['thiskicks','Thiskicks','Pitch your invention and see what people think.','https://thiskicks.balagan.live'],
-  ['wemember','Wemember','Listen once. See how many details you remember.','https://wemember.balagan.live'],
-  ['sorriest','Sorriest','Give the press your best apology for a fictional scandal.','https://sorriest.balagan.live'],
-  ['barara','Barara','Put the missing cookie on trial in a private court.','https://bar.ara.balagan.live'],
-  ['xmincing','XMincing','Turn your group’s answers into a song.','https://xmincing-ypoppy.balagan.live']
+  {
+    name: 'Wemember', kind: 'Voice memory', href: 'https://wemember.balagan.live/',
+    setup: 'Host reads a short script into a private room. Friends listen once and type the details they remember. Accuracy wins, with speed as the tiebreaker.',
+    entry: 'First challenge free per UTC day, then 15 tokens each.',
+    rewards: '15, 8 and 5 tokens for the top three eligible players.',
+  },
+  {
+    name: 'Sorriest', kind: 'Daily writing contest', href: 'https://sorriest.balagan.live/',
+    setup: 'Join a fictional scandal, write a short apology, then vote on another entrant’s response. Each contest has a full day to write and another to vote.',
+    entry: 'Free to browse. 20 tokens to enter a contest.',
+    rewards: '5–20 tokens for up to ten apologies that receive votes.',
+  },
+  {
+    name: 'Barara', kind: 'Private courtroom', href: 'https://bar.ara.balagan.live/',
+    setup: 'Open a private court for a petty fictional dispute. Two friends argue their sides and up to five jurors decide the case in ten minutes.',
+    entry: '30 tokens per player, including the host and jurors.',
+    rewards: '20 for the winner and 15 per winning-side juror, with at least three ballots.',
+  },
+  {
+    name: 'Thiskicks', kind: 'Public pitch board', href: 'https://thiskicks.balagan.live/',
+    setup: 'Pitch a product idea, share its link and see what people would buy or change. Published pitches are public and permanent.',
+    entry: 'First pitch free, then 30 tokens per pitch. Comments and voting are free.',
+    rewards: 'Spend Balagan tokens to publish. Pitch activity doesn’t award tokens.',
+  },
 ];
+const packs = Object.values(offers).filter(offer => !offer.interval);
+const memberships = Object.values(offers).filter(offer => offer.interval);
+const period = {monthly:'per month',annual:'per year','two-year':'every two years'};
+const membershipTerms = ['monthly','annual','two-year'];
 ---
 <Balagan>
   <section class="hero">
-    <div><h1>Something to play together.</h1><p>Pitch a strange invention, remember one recording, or put the last cookie on trial.</p><a class="button" href="#games">Browse games</a> <a class="signup" href="/register">Create an account</a></div>
+    <div>
+      <h1>Make a little trouble with friends.</h1>
+      <p>Balagan brings together three social games and a public pitch board. One account gets you into all four, and one wallet holds the tokens you buy and win.</p>
+      <div class="actions"><a class="button" href="#games">Find something to play</a><a href="/register">Create a free account</a></div>
+    </div>
     <img src="/media/balagan-wide.png" alt="Friends laughing around a games table" width="1672" height="941" fetchpriority="high">
   </section>
-  <section id="games">
-    <h2>Pick a game</h2>
-    <div class="grid">
-      {games.map(([id,name,copy,href]) => <a class="poster" href={href}><img src={'/media/'+id+'-wide.png'} alt="" width="1672" height="941" loading="lazy"><div><h3>{name}</h3><p>{copy}</p></div></a>)}
+
+  <section class="section" id="games">
+    <div class="section-intro">
+      <h2>Pick what to play</h2>
+      <p>Start a private room, enter a daily contest, or put your idea in front of people. The rules are on each app’s home page.</p>
     </div>
-    <p class="travel">Looking for travel planning? <a href="https://orach-travel.balagan.live">Open Orach</a> · Separate sign-in.</p>
+    {games.map(game => <article class="game">
+      <div class="game-name"><p>{game.kind}</p><h3>{game.name}</h3><a href={game.href}>Open {game.name} →</a></div>
+      <p>{game.setup}</p>
+      <dl><dt>Entry</dt><dd>{game.entry}</dd><dt>Rewards</dt><dd>{game.rewards}</dd></dl>
+    </article>)}
   </section>
+
+  <section class="section" id="tokens">
+    <div class="section-intro"><h2>One wallet for all four</h2><p>Tokens pay for game entry and extra Thiskicks pitches. When you place in a game, your rewards go into the same wallet. Signing up is free.</p></div>
+    <div class="pricing">
+      <section><h3>One-time packs</h3><dl>
+        {packs.map(offer => <div><dt>{offer.tokens} tokens</dt><dd>{money(offer.cents)}</dd></div>)}
+      </dl><p>Pack tokens and game rewards stay in your wallet until spent.</p></section>
+      <section><h3>Optional monthly refills</h3><dl>
+        {memberships.map((offer,i) => <div><dt>{offer.tokens.toLocaleString('en-US')} tokens/month</dt><dd>{money(offer.cents)} {period[membershipTerms[i]]}</dd></div>)}
+      </dl><p>Every plan refills monthly. Unused subscription tokens don’t roll over.</p></section>
+    </div>
+    <a class="button" href="/wallet">Open your wallet</a>
+  </section>
+
+  <aside class="elsewhere">
+    <h2>Also on Balagan</h2>
+    <p><a href="https://xmincing-ypoppy.balagan.live">XMincing</a> turns a group’s answers into a song and works without a Balagan sign-in. <a href="https://orach-travel.balagan.live">Orach</a> helps you plan a trip and uses its own sign-in. Each handles its own payments.</p>
+  </aside>
 </Balagan>
 <style>
-.hero{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);background:#3b1436;color:#fff4dc;border-radius:10px;overflow:hidden} .hero div{align-self:center;padding:clamp(24px,4.2vw,58px)} .hero p{font-size:20px;margin-bottom:22px}.signup{display:inline-block;margin:5px 0 4px 7px;font-size:15px}.hero img{height:100%;min-height:400px;object-fit:cover;object-position:65% center}img{display:block;width:100%;height:auto}#games{margin-top:48px}.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}.poster{grid-column:span 2;background:#fff7ff;border:1px solid #c8adce;border-radius:6px;overflow:hidden;text-decoration:none}.poster:nth-child(-n+2){grid-column:span 3}.poster:hover{box-shadow:4px 4px #30143c}.poster div{padding:19px}.poster p{margin:0}.travel{margin-top:24px}
-@media(max-width:820px){.hero{grid-template-columns:minmax(0,1fr)}.hero img{height:auto;min-height:0;max-height:360px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.poster,.poster:nth-child(-n+2){grid-column:span 1}}@media(max-width:480px){.grid{grid-template-columns:1fr}}
+.hero{display:grid;grid-template-columns:minmax(0,1.03fr) minmax(0,1fr);background:#3b1436;color:#fff4dc;border-radius:10px;overflow:hidden}
+.hero>div{align-self:center;padding:clamp(20px,4.4vw,56px)}
+.hero h1{font-family:Georgia,serif;font-size:clamp(2.65rem,6vw,5.2rem)}
+.hero p{font-size:1.06em;max-width:39ch}
+.hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:60% center}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.actions>a{min-height:44px;display:inline-flex;align-items:center}
+.section{margin-top:clamp(44px,7vw,86px)}
+.section-intro{margin-bottom:24px}
+.section-intro>p{margin:0}
+.game{display:grid;grid-template-columns:minmax(145px,.72fr) minmax(0,1.15fr) minmax(0,1fr);gap:clamp(16px,3.5vw,44px);padding:22px 0;border-top:1px solid #bba1c6}
+.game>p,.game dl,.game-name p{margin:0}
+.game-name p{font-size:.84em;font-weight:700}
+.game-name h3{margin:4px 0 10px}
+.game dt{font-weight:750}
+.game dd{margin:0 0 6px}
+.pricing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:16px}
+.pricing section{background:#fff7ff;border-top:4px solid #3b1436;padding:clamp(15px,3vw,28px)}
+.pricing dl{margin:12px 0}
+.pricing dl>div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;padding:6px 0;border-bottom:1px solid #d9c7de}
+.pricing dd{margin:0;font-weight:750}
+.elsewhere{margin-top:45px;border-top:1px solid #bba1c6;padding-top:20px}
+.elsewhere h2{font-size:26px}
+@media(max-width:800px){.hero{grid-template-columns:minmax(0,1fr)}.hero img{height:auto;aspect-ratio:16/9;max-height:345px}.game{grid-template-columns:minmax(145px,.8fr) minmax(0,1.6fr)}.game dl{grid-column:2}}
+@media(max-width:540px){.game,.pricing{grid-template-columns:minmax(0,1fr)}.game dl{grid-column:auto}.game{gap:10px}.game h3{font-size:32px}}
 </style>

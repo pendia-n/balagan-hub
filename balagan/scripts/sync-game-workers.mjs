@@ -14,7 +14,7 @@ for(const game of games){
  const worker=resolve(folder,'balagan-worker');
  await mkdir(resolve(worker,'migrations'),{recursive:true});
  for(const file of ['game-auth.mjs','session.mjs','settlement-proof.mjs'])await copyFile(resolve(project,'src/lib',file),resolve(worker,file));
- for(const file of ['room.mjs','games.mjs','brand.mjs','challenges.mjs','challenge-rules.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
+ for(const file of ['room.mjs','games.mjs','brand.mjs','challenges.mjs','challenge-rules.mjs','landing.mjs'])await copyFile(resolve(project,'game-worker',file),resolve(worker,file));
  await copyFile(resolve(project,'game-worker/rooms.sql'),resolve(worker,'migrations/0001_rooms.sql'));
  await copyFile(resolve(project,'game-worker/decks',game.name+'.sql'),resolve(worker,'migrations/0002_prompt_deck.sql'));
  await copyFile(resolve(project,'game-worker/challenges.sql'),resolve(worker,'migrations/0003_challenges.sql'));
@@ -27,3 +27,19 @@ for(const game of games){
  if(game.bucket)config.r2_buckets=[{binding:'MEDIA',bucket_name:game.bucket}];
  await writeFile(resolve(folder,'wrangler.production.json'),JSON.stringify(config,null,2)+'\n');
 }
+
+const thiskicks = resolve(mvp,'gain-recreation/thiskicks');
+const pitchWorker = resolve(thiskicks,'worker');
+await mkdir(pitchWorker,{recursive:true});
+for(const file of ['game-auth.mjs','session.mjs','wallet.mjs','fulfill.mjs','offers.mjs','stripe.mjs']){
+ await copyFile(resolve(project,'src/lib',file),resolve(pitchWorker,file));
+}
+await copyFile(resolve(project,'game-worker/brand.mjs'),resolve(pitchWorker,'brand.mjs'));
+await copyFile(resolve(project,'game-worker/thiskicks.mjs'),resolve(pitchWorker,'index.mjs'));
+await writeFile(resolve(thiskicks,'wrangler.production.json'),JSON.stringify({
+ name:'thiskicks',main:'worker/index.mjs',compatibility_date:'2026-11-17',
+ routes:[{pattern:'thiskicks.balagan.live',custom_domain:true}],
+ services:[{binding:'BALAGAN',service:'balagan'}],
+ d1_databases:[{binding:'DB',database_name:'balagan-auth',database_id:'2136db13-de0b-4484-8cd8-d14c835b2401'}],
+ r2_buckets:[{binding:'PITCH_MEDIA',bucket_name:'thiskicks-pitch-media'}],
+},null,2)+'\n');

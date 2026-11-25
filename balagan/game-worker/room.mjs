@@ -1,3 +1,4 @@
+import { gameLanding, landingCSS } from './landing.mjs';
 import {challenges, maintainChallenges} from './challenges.mjs';
 import { brandAsset, brandCSS, brandLink, iconTag } from './brand.mjs';
 import { gameAuth, gameUser } from './game-auth.mjs';
@@ -17,7 +18,7 @@ function html(g,title,body,status=200){
  const [paper,ink,accent]=g.colors;
  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+h(title)+' · '+g.name+'</title>'+iconTag+'<style>'+brandCSS+
  `*{box-sizing:border-box}body{background:${paper};color:${ink};margin:0;font:17px/1.55 system-ui,sans-serif}a{color:inherit}nav,main{width:min(1070px,calc(100% - 32px));margin:auto}nav{display:flex;gap:20px;justify-content:space-between;padding:20px 0;border-bottom:1px solid currentColor}main{padding:36px 0}h1,h2{letter-spacing:-.05em;line-height:1}h1{font-size:clamp(38px,6vw,73px);margin:0 0 22px}h2{font-size:32px}.hero{display:grid;grid-template-columns:1fr 1.2fr;border:1px solid currentColor;border-radius:8px;overflow:hidden}.hero div,.panel{padding:clamp(18px,4vw,45px)}.hero img{width:100%;height:100%;object-fit:cover}.panel{border:1px solid currentColor;border-radius:8px;background:#ffffff90;max-width:780px;margin-bottom:15px}.button,button{display:inline-block;background:${accent};color:${ink};border:1px solid currentColor;border-radius:4px;font:inherit;font-weight:750;padding:10px 14px;margin:6px 8px 0 0;text-decoration:none;cursor:pointer}form{margin-top:12px}label{display:block;font-weight:700;margin-top:12px}input,textarea,select{width:100%;padding:10px;font:inherit;margin:5px 0 12px}textarea{min-height:125px}.answer{white-space:pre-wrap;overflow-wrap:anywhere}.player{border-bottom:1px solid currentColor;padding:7px 0}:focus-visible{outline:3px solid currentColor;outline-offset:4px}@media(max-width:720px){.hero{grid-template-columns:1fr}}`+
- '</style><body><nav>'+brandLink(g.name)+'<div><a href="https://balagan.live/wallet">Wallet</a> · <a href="https://balagan.live">Balagan</a></div></nav><main>'+body+'</main></body></html>', {status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
+ landingCSS+'</style><body><nav>'+brandLink(g.name)+'<div><a href="https://balagan.live/wallet">Wallet</a><a href="https://balagan.live">Balagan</a></div></nav><main>'+body+'</main></body></html>', {status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'}});
 }
 async function readForm(request) {
  if(!/^application\/x-www-form-urlencoded(?:;|$)/i.test(request.headers.get('content-type')||''))return null;
@@ -53,7 +54,7 @@ export function createRoomWorker(game){
   if(method!=='GET'&&method!=='POST')return new Response(null,{status:405});
   if(method==='POST'&&request.headers.get('Origin')!==url.origin)return new Response(null,{status:403});
   const db=env.DB;
-  if(path==='/'&&method==='GET')return render(g.name,'<section class="hero"><div><h1>'+g.heading+'</h1>'+para(game==='wemember'?'Read a random script aloud. Friends hear it once and type what they remember.':game==='sorriest'?'Write one apology for a daily fictional scandal, then vote.':'Challenge a friend and invite up to five jurors.')+para(game==='sorriest'?'20 tokens per entry. New games open throughout the day.':g.entry)+link(game==='sorriest'?'Browse today’s contests':'Host a challenge',game==='sorriest'?'/daily':'/challenge/new')+'</div><img src="https://balagan.live/media/'+game+'-wide.png" alt=""></section>');
+  if(path==='/'&&method==='GET')return render(g.name,gameLanding(game));
   const match=/^\/room\/([a-f0-9-]{36})(?:\/(recording))?$/.exec(path);
   if(path!=='/host'&&!match)return message('Page not found',link('Game home','/'),404);
   if(path==='/host')return new Response(null,{status:303,headers:{Location:game==='sorriest'?'/daily':'/challenge/new'}});

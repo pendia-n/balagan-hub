@@ -1,4 +1,5 @@
 const prices = Object.freeze({ wemember:15, sorriest:20, barara:30 });
+export const pitchPrice = 30;
 const timestamp = () => Math.floor(Date.now() / 1000);
 const availableGrants = `
   SELECT g.id, g.created_at, g.expires_at, g.amount - COALESCE((
@@ -33,7 +34,13 @@ export async function reserveEntry(db, {userId, game, roundId}, now=timestamp())
     ON CONFLICT(user_id,game,round_id) DO NOTHING
   `).bind(free,free,userId,game,free,prices[game],
     id,userId,game,roundId,now,userId,now);
-  const allocate = db.prepare(`
+  await db.batch([reserve,allocateTokens(db,userId,id,now)]);
+  return db.prepare('SELECT id,state,cost,free_day FROM game_entries WHERE user_id=? AND game=? AND round_id=?')
+    .bind(userId,game,roundId).first();
+}
+
+function allocateTokens(db, userId, id, now) {
+  return db.prepare(`
     WITH grants AS (`+availableGrants+`), ranked AS (
       SELECT id,remaining,COALESCE(sum(remaining) OVER(
         ORDER BY expires_at IS NULL, expires_at, created_at,id ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
@@ -43,9 +50,31 @@ export async function reserveEntry(db, {userId, game, roundId}, now=timestamp())
     SELECT e.id,r.id,min(r.remaining,e.cost-r.used)
     FROM game_entries e CROSS JOIN ranked r WHERE e.id=? AND r.used<e.cost
   `).bind(userId,now,id);
-  await db.batch([reserve,allocate]);
-  return db.prepare('SELECT id,state,cost,free_day FROM game_entries WHERE user_id=? AND game=? AND round_id=?')
-    .bind(userId,game,roundId).first();
+}
+
+export async function pitchQuote(db, userId, now=timestamp()) {
+  const prior = await db.prepare('SELECT 1 FROM thiskicks_pitches WHERE owner_id=? LIMIT 1').bind(userId).first();
+  return {cost:prior ? pitchPrice : 0, balance:await balance(db,userId,now)};
+}
+
+export async function publishPitch(db, {id, userId, title, body, image, maxCost}, now=timestamp()) {
+  const entryId = crypto.randomUUID();
+  const charge = db.prepare(`
+    WITH quote AS (
+      SELECT CASE WHEN EXISTS(SELECT 1 FROM thiskicks_pitches WHERE owner_id=?)
+        THEN ? ELSE 0 END AS cost
+    )
+    INSERT INTO game_entries(id,user_id,game,round_id,cost,state,created_at)
+    SELECT ?,?,'thiskicks',?,cost,'spent',? FROM quote
+    WHERE cost<=? AND (cost=0 OR cost<=(SELECT COALESCE(sum(remaining),0) FROM (`+availableGrants+`)))
+    ON CONFLICT(user_id,game,round_id) DO NOTHING
+  `).bind(userId,pitchPrice,entryId,userId,id,now,maxCost,userId,now);
+  const publish = db.prepare(`
+    INSERT INTO thiskicks_pitches(id,owner_id,title,body,image_key,created_at)
+    SELECT ?,?,?,?,?,? FROM game_entries WHERE id=?
+  `).bind(id,userId,title,body,image,now,entryId);
+  await db.batch([charge,allocateTokens(db,userId,entryId,now),publish]);
+  return db.prepare('SELECT id,image_key FROM thiskicks_pitches WHERE id=? AND owner_id=?').bind(id,userId).first();
 }
 
 export async function settleRound(db, game, roundId, outcome, userId) {

@@ -6,12 +6,12 @@ import {test} from 'node:test';
 import {refill,fulfillStripe} from '../src/lib/fulfill.mjs';
 import {checkoutParams,verifyWebhook} from '../src/lib/stripe.mjs';
 import {offers} from '../src/lib/offers.mjs';
-import {balance,reserveEntry,settleRound} from '../src/lib/wallet.mjs';
+import {balance,pitchQuote,publishPitch,reserveEntry,settleRound} from '../src/lib/wallet.mjs';
 
 function fixture(t){
  const sql=new DatabaseSync(':memory:');
  t.after(()=>sql.close());
- for(const file of ['0001_accounts_wallet','0003_stripe_lifecycle','0004_billing_cancellation']){
+ for(const file of ['0001_accounts_wallet','0003_stripe_lifecycle','0004_billing_cancellation','0006_thiskicks_wallet']){
   sql.exec(readFileSync(new URL('../migrations/'+file+'.sql',import.meta.url),'utf8'));
  }
  sql.exec("INSERT INTO users VALUES('u','fixture','fixture',0)");
@@ -77,7 +77,6 @@ test('every offer creates Checkout with inline USD pricing and the intended recu
  const terms={
   'tokens-50':[500,null], 'tokens-150':[700,null], 'tokens-500':[1500,null],
   'wallet-monthly':[1200,'month',1], 'wallet-annual':[13400,'year',1], 'wallet-two-year':[32600,'year',2],
-  'thiskicks-monthly':[200,'month',1], 'thiskicks-annual':[2000,'year',1], 'thiskicks-lifetime':[6000,null],
  };
  assert.deepEqual(Object.keys(offers).sort(),Object.keys(terms).sort());
  for(const [id,[amount,interval,count]] of Object.entries(terms)){
@@ -91,4 +90,23 @@ test('every offer creates Checkout with inline USD pricing and the intended recu
   assert.equal(form.has('line_items[0][price]'),false);
   assert.equal(form.has('payment_method_types[0]'),false);
  }
+});
+
+test('Thiskicks publishes the first pitch free and later pitches for 30 tokens atomically',async t=>{
+ const {db,sql}=fixture(t);
+ const now=1700000000;
+ const pitch={id:crypto.randomUUID(),userId:'u',title:'An idea',body:'The original pitch',image:null,maxCost:0};
+ const later={...pitch,id:crypto.randomUUID()};
+ assert.deepEqual(await pitchQuote(db,'u',now),{cost:0,balance:0});
+ assert.equal((await publishPitch(db,pitch,now)).id,pitch.id);
+ assert.equal(await publishPitch(db,later,now),undefined);
+ assert.equal(await publishPitch(db,{...later,maxCost:30},now),undefined);
+ sql.exec("INSERT INTO token_grants VALUES('pack','u',50,NULL,0)");
+ assert.deepEqual(await pitchQuote(db,'u',now),{cost:30,balance:50});
+ assert.equal(await publishPitch(db,later,now),undefined);
+ assert.equal((await publishPitch(db,{...later,maxCost:30},now)).id,later.id);
+ assert.equal((await publishPitch(db,{...later,title:'Retry tries to replace the title',maxCost:30},now)).id,later.id);
+ assert.equal(sql.prepare('SELECT title FROM thiskicks_pitches WHERE id=?').get(later.id).title,pitch.title);
+ assert.equal(await balance(db,'u',now),20);
+ assert.equal(sql.prepare("SELECT count(*) AS n FROM game_entries WHERE game='thiskicks' AND state='spent'").get().n,2);
 });
