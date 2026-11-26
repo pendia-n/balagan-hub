@@ -41,6 +41,15 @@ const rules = {
 };
 
 export const landingCSS = `
+.contest-intro{max-width:64ch}
+.contest-filters{display:flex;flex-wrap:wrap;gap:10px;width:100%;margin:24px 0;padding:0;border:0;justify-content:flex-start}
+.contest-filters a{padding:10px 16px;min-height:44px;border:1px solid currentColor;border-radius:7px;text-decoration:none}
+.contest-filters [aria-current]{background:#501329;color:#fff}
+.contest-list{display:grid;gap:14px}
+.contest-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px;padding:22px;border:1px solid #50132940;background:#fff9;border-radius:10px}
+.contest-row h2{font-size:23px;margin:0 0 10px}.contest-row p{margin:0}.contest-row .button{margin:0;white-space:nowrap}
+@media(max-width:580px){.contest-row{grid-template-columns:1fr;gap:14px}.contest-row .button{justify-self:start}}
+
 .game-intro{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:stretch;gap:clamp(20px,5vw,64px);padding:0 0 clamp(26px,5vw,56px)}
 .game-intro h1{font-family:Georgia,serif;font-weight:700;font-size:clamp(2.65rem,7vw,5.3rem);margin:0 0 .26em}
 .game-intro p{max-width:42ch}
@@ -173,7 +182,7 @@ export function gameLanding(game) {
       <aside>
         <h2>Balagan tokens</h2>
         <h3>Entry</h3><p>${entry}</p>
-        <h3>Rewards</h3><p>${rewards} Rewards go into your Balagan wallet.</p>
+        <h3>Earn tokens</h3><p>${rewards} Rewards go into your Balagan wallet.</p>
         <a href="https://balagan.live/wallet">Open Balagan wallet</a>
       </aside>
     </div>`;

@@ -45,4 +45,11 @@ const { title = 'Balagan' } = Astro.props;
     padding-top: 26px;
   }
 }
+body{font-size:16px;line-height:1.65}
+main{padding-top:40px}
+h1,h2,h3{letter-spacing:-.035em}
+button,.button{border-radius:8px;transition:transform .15s,box-shadow .15s}
+button:hover,.button:hover{transform:translateY(-2px)}
+.panel{border-radius:12px}
+@media(prefers-reduced-motion:reduce){button,.button{transition:none}}
 </style>

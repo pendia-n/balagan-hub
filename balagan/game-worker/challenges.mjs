@@ -133,8 +133,17 @@ export async function challenges(request,env,game,render){
   const today=Math.floor(now/day)*day;
   const {results}=await db.prepare("SELECT id,name,start_ms,submit_until,vote_until FROM challenges WHERE vote_until>? AND start_ms<? ORDER BY start_ms DESC")
     .bind(now,today+day).all();
-  return show('Daily Sorriest',text('19 contests open over the UTC day. Each entry costs 20 tokens. One apology up to 500 characters per contest.')+link('How to play and earn tokens','/#how-to-play')+
-    results.map(row=>'<div class="player">'+esc(row.name)+' · '+(row.start_ms>now?'Opens '+date(row.start_ms):row.submit_until>now?'Accepting entries until '+date(row.submit_until):'Voting until '+date(row.vote_until))+link('View contest',path(game,row.id))+'</div>').join(''));
+  const filter=url.searchParams.get('status')||'open';
+  const options=[['open','Write an apology'],['voting','Voting'],['upcoming','Upcoming']];
+  const selected=options.some(([key])=>key===filter)?filter:'open';
+  const visible=results.filter(row=>selected==='upcoming'?row.start_ms>now:selected==='voting'?row.start_ms<=now&&row.submit_until<=now:row.start_ms<=now&&row.submit_until>now);
+  return show('Daily Sorriest',
+    '<div class="contest-intro"><p>Turn a ridiculous scandal into an apology people want to vote for.</p><p><strong>Play for 20 tokens.</strong> Write up to 500 characters. Writing and voting each last 24 hours.</p>'+
+    '<p><strong>Earn tokens by rank</strong> · 1–3: 20 each · 4–7: 10 each · 8–9: 8 each · 10: 5. Your apology needs votes to qualify.</p></div>'+
+    '<nav class="contest-filters" aria-label="Contest status">'+options.map(([key,label])=>'<a href="/daily?status='+key+'"'+(selected===key?' aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>'+
+    '<div class="contest-list">'+(visible.length?visible.map(row=>'<article class="contest-row"><div><h2>'+esc(row.name)+'</h2><p>'+esc(selected==='upcoming'?'Opens '+date(row.start_ms):selected==='open'?'Write until '+date(row.submit_until):'Vote until '+date(row.vote_until))+'</p></div>'+link(selected==='open'?'Open challenge':selected==='voting'?'View apologies':'Preview challenge',path(game,row.id))+'</article>').join(''):'<p>No contests in this view right now. Try another status.</p>')+'</div>'+
+    link('How to play','/#how-to-play'));
+
  }
  if(route==='/challenge/new'&&!daily){
   const user=await gameUser(request,env,game);
