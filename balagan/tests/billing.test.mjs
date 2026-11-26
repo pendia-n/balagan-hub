@@ -11,7 +11,7 @@ import {balance,pitchQuote,publishPitch,reserveEntry,settleRound} from '../src/l
 function fixture(t){
  const sql=new DatabaseSync(':memory:');
  t.after(()=>sql.close());
- for(const file of ['0001_accounts_wallet','0003_stripe_lifecycle','0004_billing_cancellation','0006_thiskicks_wallet']){
+ for(const file of ['0001_accounts_wallet','0003_stripe_lifecycle','0004_billing_cancellation','0006_thiskicks_wallet','0008_pitch_rewards']){
   sql.exec(readFileSync(new URL('../migrations/'+file+'.sql',import.meta.url),'utf8'));
  }
  sql.exec("INSERT INTO users VALUES('u','fixture','fixture',0)");
@@ -176,4 +176,18 @@ test('signed webhook credits delayed paid checkout exactly once and rejects forg
  assert.equal((await send('checkout.session.async_payment_succeeded','paid')).status,200);
  assert.equal((await send('checkout.session.async_payment_succeeded','paid')).status,200);
  assert.equal(await balance(db,'u'),50);
+});
+
+
+test('monthly pitch settlement credits eligible votes once',async t=>{
+ const {settlePitchMonth,monthWindow}=await import('../src/lib/pitch-rewards.mjs');
+ const {db,sql}=fixture(t);
+ const now=Date.parse('2027-02-28T23:01:00Z'),period=monthWindow(now);
+ sql.exec("INSERT INTO users VALUES('v','voter','fixture',0)");
+ sql.prepare("INSERT INTO thiskicks_pitches VALUES('pitch','u','Lamp','A lamp',NULL,?)").run(period.start+1);
+ sql.prepare("INSERT INTO thiskicks_monthly_votes VALUES('pitch','v',?)").run(period.start+2);
+ await settlePitchMonth(db,now);
+ await settlePitchMonth(db,now);
+ assert.equal(await balance(db,'u',Math.floor(now/1000)),350);
+ assert.equal(sql.prepare('SELECT count(*) AS n FROM thiskicks_reward_months').get().n,1);
 });
