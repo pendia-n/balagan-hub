@@ -295,7 +295,9 @@ export default {async scheduled(_event,env,ctx){ctx.waitUntil(settlePitchMonth(e
     const guest=voteId(request)||crypto.randomUUID();
     await db.prepare('INSERT OR IGNORE INTO thiskicks_votes VALUES (?,?)').bind(id,user?'user:'+user.id:'guest:'+guest).run();
     if(user&&user.id!==pitch.owner_id){
-      await db.prepare('INSERT OR IGNORE INTO thiskicks_monthly_votes VALUES(?,?,?)').bind(id,user.id,Math.floor(Date.now()/1000)).run();
+      await db.prepare(`INSERT OR IGNORE INTO thiskicks_monthly_votes
+       SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM thiskicks_votes WHERE pitch_id=? AND voter=?)`)
+       .bind(id,user.id,Math.floor(Date.now()/1000),id,'user:'+user.id).run();
     }
     const response=redirect(route(id));
     if(!user&&!voteId(request))response.headers.append('Set-Cookie','__Host-thiskicks-guest='+guest+'; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=2592000');
