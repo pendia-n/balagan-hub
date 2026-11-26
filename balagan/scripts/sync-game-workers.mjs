@@ -31,13 +31,13 @@ for(const game of games){
 const thiskicks = resolve(mvp,'gain-recreation/thiskicks');
 const pitchWorker = resolve(thiskicks,'worker');
 await mkdir(pitchWorker,{recursive:true});
-for(const file of ['game-auth.mjs','session.mjs','wallet.mjs','fulfill.mjs','offers.mjs','stripe.mjs']){
+for(const file of ['game-auth.mjs','session.mjs','wallet.mjs','fulfill.mjs','offers.mjs','stripe.mjs','pitch-rewards.mjs']){
  await copyFile(resolve(project,'src/lib',file),resolve(pitchWorker,file));
 }
 await copyFile(resolve(project,'game-worker/brand.mjs'),resolve(pitchWorker,'brand.mjs'));
 await copyFile(resolve(project,'game-worker/thiskicks.mjs'),resolve(pitchWorker,'index.mjs'));
 await writeFile(resolve(thiskicks,'wrangler.production.json'),JSON.stringify({
- name:'thiskicks',main:'worker/index.mjs',compatibility_date:'2026-11-17',
+ name:'thiskicks',triggers:{crons:['5 * * * *']},main:'worker/index.mjs',compatibility_date:'2026-11-17',
  routes:[{pattern:'thiskicks.balagan.live',custom_domain:true}],
  services:[{binding:'BALAGAN',service:'balagan'}],
  d1_databases:[{binding:'DB',database_name:'balagan-auth',database_id:'2136db13-de0b-4484-8cd8-d14c835b2401'}],

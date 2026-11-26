@@ -1,3 +1,4 @@
+import { activeMonth, monthWindow, monthlyPitches, settlePitchMonth } from './pitch-rewards.mjs';
 import { brandAsset, brandCSS, brandLink, iconTag } from './brand.mjs';
 import { gameAuth, gameUser } from './game-auth.mjs';
 import { pitchPrice, pitchQuote, publishPitch } from './wallet.mjs';
@@ -47,7 +48,7 @@ main h1{overflow-wrap:anywhere}
 @media(max-width:440px){nav{flex-wrap:wrap;padding:12px 0}nav a{min-height:40px;display:inline-flex;align-items:center}}
 `;
 function page(title, content, status=200) {
-  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(title)+' · Thiskicks</title>'+iconTag+'<style>'+brandCSS+css+guideCSS+'</style><body><nav>'+brandLink('Thiskicks')+'<div class="nav-links"><a href="/board">Pitch board</a><a href="https://balagan.live/wallet">Wallet</a><a href="https://balagan.live">Balagan</a></div></nav><main>'+content+'</main></body></html>',{
+  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'+esc(title)+' · Thiskicks</title>'+iconTag+'<style>'+brandCSS+css+guideCSS+'</style><body><nav>'+brandLink('Thiskicks')+'<div class="nav-links"><a href="/board">Pitch board</a><a href="/leaderboard">Earn tokens</a><a href="https://balagan.live/wallet">Wallet</a><a href="https://balagan.live">Balagan</a></div></nav><main>'+content+'</main></body></html>',{
     status,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'}
   });
 }
@@ -86,7 +87,7 @@ async function saveImage(file,env,id) {
   return key;
 }
 
-export default {async fetch(request,env){
+export default {async scheduled(_event,env,ctx){ctx.waitUntil(settlePitchMonth(env.DB));},async fetch(request,env){
   const url=new URL(request.url);
   const path=url.pathname;
   const brand=await brandAsset(request,env,game);
@@ -96,6 +97,14 @@ export default {async fetch(request,env){
   if(!['GET','HEAD','POST'].includes(request.method))return new Response(null,{status:405});
   if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return error('Invalid request origin',403);
   const db=env.DB;
+  if(path==='/leaderboard'&&request.method==='GET'){
+    const window=monthWindow();
+    const {start,end}=activeMonth();
+    const rows=await monthlyPitches(db,{start,end});
+    return page('Monthly pitch rewards','<h1>Pitch. Share. Earn.</h1><p>First pitch free, then 30 tokens to publish. Comments and voting are free.</p><p>Every month closes on the 1st at 02:00 UTC+3. Only pitches published and signed-in votes cast during that monthly period qualify. Self-votes and anonymous votes do not count toward rewards.</p><h2>Monthly token prizes</h2><p>1st: 350 · 2nd–3rd: 280 each · 4th–10th: 230 each · 11th–25th: 100 each · 26th–50th: 30 each.</p><p>One winning pitch per creator. Exact ties share the combined prizes of the tied positions, rounded down. Ties across 50th can produce more than 50 winners. Pitches need at least one eligible vote.</p><h2>Current standings</h2>'+
+      (rows.length?rows.map(row=>'<article class="panel"><strong>'+row.rank+' · '+row.votes+' votes · '+row.amount+' tokens if standings hold</strong><h3><a href="'+route(row.id)+'">'+esc(row.title)+'</a></h3></article>').join(''):'<p>No qualifying votes yet. Publish and share your pitch.</p>')+
+      '<p>Rewards are credited to your Balagan wallet after the deadline.</p>'+link('Browse pitches','/board'));
+  }
   if(path==='/board'&&request.method==='GET'){
     const count=20;
     const query=(url.searchParams.get('q')||'').trim().slice(0,120);
@@ -195,7 +204,7 @@ export default {async fetch(request,env){
         <section class="panel" id="publishing">
           <h2>Publishing cost</h2>
           <p><strong>First pitch free.</strong> Every later pitch costs <strong>${pitchPrice} Balagan tokens</strong> when you publish.</p>
-          <p>Use the tokens you buy in Balagan or earn in Wemember, Sorriest and Barara. Publishing, votes and comments don’t earn tokens.</p>
+          <p>Use the tokens you buy in Balagan or earn in Wemember, Sorriest and Barara. Monthly top pitches earn 30–350 tokens. <a href="/leaderboard">See rewards and standings</a>.</p>
           <a href="https://balagan.live/wallet">Open Balagan wallet</a>
         </section>
       </div>`);
@@ -285,6 +294,9 @@ export default {async fetch(request,env){
     }
     const guest=voteId(request)||crypto.randomUUID();
     await db.prepare('INSERT OR IGNORE INTO thiskicks_votes VALUES (?,?)').bind(id,user?'user:'+user.id:'guest:'+guest).run();
+    if(user&&user.id!==pitch.owner_id){
+      await db.prepare('INSERT OR IGNORE INTO thiskicks_monthly_votes VALUES(?,?,?)').bind(id,user.id,Math.floor(Date.now()/1000)).run();
+    }
     const response=redirect(route(id));
     if(!user&&!voteId(request))response.headers.append('Set-Cookie','__Host-thiskicks-guest='+guest+'; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=2592000');
     return response;
